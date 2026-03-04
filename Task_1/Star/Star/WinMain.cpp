@@ -4,10 +4,24 @@
 
 #include <windows.h>
 #include <cmath>
+#include <algorithm>
 
 struct Point {
     int x, y;
+    double angleWithCenter;
 };
+
+void calculateCenterAngles(Point points[], int size) {
+    Point center;
+    center.x = (points[0].x + points[1].x + points[2].x + points[3].x + points[4].x) / 5;
+    center.y = (points[0].y + points[1].y + points[2].y + points[3].y + points[4].y) / 5;
+
+    for(int i = 0; i < size; i++) {
+        points[i].angleWithCenter = atan2(points[i].y - center.y, points[i].x - center.x);
+    }
+}
+
+bool sortByAngle(Point p1, Point p2) { return p1.angleWithCenter < p2.angleWithCenter; }
 
 void swap(int& x1, int& x2, int& y1, int& y2)
 {
@@ -141,6 +155,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         if (clicks >= 5)
         {
+            calculateCenterAngles(points, 5);
+            std::sort(points, points + 5, sortByAngle);
             drawStar(hdc, points);
             clicks = 0;
         }
