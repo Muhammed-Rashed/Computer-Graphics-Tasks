@@ -44,7 +44,7 @@ void linePaint(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
     }
     else 
     {
-        double m = (double)dy/dx;
+        double mi = (double)dx/dy;
         if (y1 > y2) swap (x1, x2, y1, y2);
         SetPixel(hdc, x1, y1, color);
         int y = y1;
@@ -52,7 +52,7 @@ void linePaint(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
         while(y < y2)
         {
             y++;
-            x += m;
+            x += mi;
             SetPixel(hdc, round(x), y, color);
         }
     }
