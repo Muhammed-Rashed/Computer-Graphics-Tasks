@@ -64,8 +64,10 @@ void linePaint(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
 }
 
 void drawStar(HDC hdc, Point points[]) {
+    COLORREF colors[5] = {rgbRed, RGB(0, 255, 0), RGB(0, 0, 255), RGB(0, 255, 255), RGB(255, 0, 255)};
     for(int i = 0; i < 5; i++) {
-        linePaint(hdc, points[i].x, points[i].y, points[(i+2)%5].x, points[(i+2)%5].y, rgbRed);
+        COLORREF color = colors[rand() % 5];
+        linePaint(hdc, points[i].x, points[i].y, points[(i+2)%5].x, points[(i+2)%5].y, color);
     }
 }
 
@@ -110,6 +112,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine,
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    static Point points[5];
+    static int clicks = 0;
+
     switch (uMsg)
     {
     case WM_DESTROY:
@@ -118,18 +123,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_LBUTTONDOWN:
     {
-        if (firstClick)
+        points[clicks].x = LOWORD(lParam);
+        points[clicks].y = HIWORD(lParam);
+        clicks++;
+
+        if(clicks >= 5)
         {
-            x_start = LOWORD(lParam);
-            y_start = HIWORD(lParam);
-            firstClick = false;
-        }
-        else
-        {
-            x_end = LOWORD(lParam);
-            y_end = HIWORD(lParam);
-            firstClick = true;
-            pointClicked = true;
             InvalidateRect(hwnd, NULL, FALSE);
         }
         return 0;
@@ -140,9 +139,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
-        if (pointClicked)
+        if (clicks >= 5)
         {
-            linePaint(hdc, x_start, y_start, x_end, y_end, rgbRed);
+            drawStar(hdc, points);
+            clicks = 0;
         }
 
         EndPaint(hwnd, &ps);
