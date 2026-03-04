@@ -4,6 +4,11 @@
 
 #include <windows.h>
 #include <cmath>
+
+struct Point {
+    int x, y;
+};
+
 void swap(int& x1, int& x2, int& y1, int& y2)
 {
     int temp = x1;
@@ -56,7 +61,14 @@ void linePaint(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
             SetPixel(hdc, round(x), y, color);
         }
     }
-};
+}
+
+void drawStar(HDC hdc, Point points[]) {
+    for(int i = 0; i < 5; i++) {
+        linePaint(hdc, points[i].x, points[i].y, points[(i+2)%5].x, points[(i+2)%5].y, rgbRed);
+    }
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine, int nCmdShow)
 {
     const wchar_t CLASS_NAME[] = L"Sample Window Class";
