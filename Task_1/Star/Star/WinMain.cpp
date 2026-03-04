@@ -3,7 +3,16 @@
 #endif 
 
 #include <windows.h>
-
+#include <cmath>
+void swap(int& x1, int& x2, int& y1, int& y2)
+{
+    int temp = x1;
+    int temp2 = y1;
+    x1 = x2;
+    y1 = y2;
+    x2 = temp;
+    y2 = temp2;
+}
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 bool pointClicked = false;
@@ -13,8 +22,41 @@ const COLORREF rgbRed = 0x000000FF;
 void pointPaint(HDC hdc, int x, int y, COLORREF color) {
     SetPixel(hdc, x, y, color);
 }
-
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine, int nCmdShow)
+void linePaint(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
+{
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    if(abs(dy) <= abs(dx))
+    {
+        double m = (double)dy/dx;
+        if(x1 > x2) swap(x1, x2, y1, y2);
+        SetPixel(hdc, x1, y1, color);
+        int x = x1;
+        double y = y1;
+        while(x < x2)
+        {
+            x++;
+            y += m;
+            SetPixel(hdc, x, round(y), color);
+        }
+    
+    }
+    else 
+    {
+        double m = (double)dy/dx;
+        if (y1 > y2) swap (x1, x2, y1, y2);
+        SetPixel(hdc, x1, y1, color);
+        int y = y1;
+        double x = x1;
+        while(y < y2)
+        {
+            y++;
+            x += m;
+            SetPixel(hdc, round(x), y, color);
+        }
+    }
+};
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
     const wchar_t CLASS_NAME[] = L"Sample Window Class";
 
