@@ -14,7 +14,7 @@ void pointPaint(HDC hdc, int x, int y, COLORREF color) {
     SetPixel(hdc, x, y, color);
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine, int nCmdShow)
 {
     const wchar_t CLASS_NAME[] = L"Sample Window Class";
 
