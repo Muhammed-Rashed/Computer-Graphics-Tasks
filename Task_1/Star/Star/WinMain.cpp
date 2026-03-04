@@ -16,7 +16,8 @@ void swap(int& x1, int& x2, int& y1, int& y2)
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 bool pointClicked = false;
-int x_pos, y_pos;
+bool firstClick = true;
+int x_start, y_start, x_end, y_end;
 const COLORREF rgbRed = 0x000000FF;
 
 void pointPaint(HDC hdc, int x, int y, COLORREF color) {
@@ -104,11 +105,23 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         return 0;
 
     case WM_LBUTTONDOWN:
-        x_pos = LOWORD(lParam);
-        y_pos = HIWORD(lParam);
-        pointClicked = true;
-        InvalidateRect(hwnd, NULL, FALSE);
+    {
+        if (firstClick)
+        {
+            x_start = LOWORD(lParam);
+            y_start = HIWORD(lParam);
+            firstClick = false;
+        }
+        else
+        {
+            x_end = LOWORD(lParam);
+            y_end = HIWORD(lParam);
+            firstClick = true;
+            pointClicked = true;
+            InvalidateRect(hwnd, NULL, FALSE);
+        }
         return 0;
+    }
 
     case WM_PAINT:
     {
@@ -117,7 +130,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         if (pointClicked)
         {
-            pointPaint(hdc, x_pos, y_pos, rgbRed);
+            linePaint(hdc, x_start, y_start, x_end, y_end, rgbRed);
         }
 
         EndPaint(hwnd, &ps);
