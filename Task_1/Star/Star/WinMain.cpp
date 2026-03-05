@@ -38,6 +38,7 @@ bool pointClicked = false;
 bool firstClick = true;
 int x_start, y_start, x_end, y_end;
 const COLORREF rgbRed = 0x000000FF;
+const COLORREF edge_color = 0x0000000;
 
 void pointPaint(HDC hdc, int x, int y, COLORREF color) {
     SetPixel(hdc, x, y, color);
@@ -139,12 +140,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
         points[clicks].x = LOWORD(lParam);
         points[clicks].y = HIWORD(lParam);
+        
         clicks++;
+        InvalidateRect(hwnd, NULL, FALSE);
 
-        if(clicks >= 5)
-        {
-            InvalidateRect(hwnd, NULL, FALSE);
-        }
         return 0;
     }
 
@@ -153,7 +152,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
-        if (clicks >= 5)
+        for(int i = 0; i < clicks; i++)
+        {
+            pointPaint(hdc, points[i].x, points[i].y, edge_color);
+        }
+
+        if (clicks == 5)
         {
             calculateCenterAngles(points, 5);
             std::sort(points, points + 5, sortByAngle);
