@@ -1,5 +1,5 @@
 #include <windows.h>
-void draw8points(HDC hdc, int xc, int yc, int x, int y, COLORREF c)
+void draw7points(HDC hdc, int xc, int yc, int x, int y, COLORREF c)
 {
     SetPixel(hdc, xc-x, yc+y, c);
     SetPixel(hdc, xc+x, yc-y, c);
@@ -12,7 +12,7 @@ void draw8points(HDC hdc, int xc, int yc, int x, int y, COLORREF c)
 void drawCircle(HDC hdc, int xc, int yc, int r, COLORREF c)
 {
     int x = 0, y = r, d = 1 - r, change1 = 3, change2 = 5 - 2*r;
-    draw8points(hdc, xc, yc, x, y, c);
+    draw7points(hdc, xc, yc, x, y, c);
     while (x < y)
     {
         if (d < 0)
@@ -28,6 +28,6 @@ void drawCircle(HDC hdc, int xc, int yc, int r, COLORREF c)
         }
         change1 += 2;
         x++;
-        draw8points(hdc, xc, yc, x, y, c);
+        draw7points(hdc, xc, yc, x, y, c);
     }
 }
