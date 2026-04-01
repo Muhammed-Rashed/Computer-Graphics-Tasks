@@ -1,7 +1,6 @@
 #include <windows.h>
 void draw8points(HDC hdc, int xc, int yc, int x, int y, COLORREF c)
 {
-    SetPixel(hdc, xc+x, yc+y, c);
     SetPixel(hdc, xc-x, yc+y, c);
     SetPixel(hdc, xc+x, yc-y, c);
     SetPixel(hdc, xc-x, yc-y, c);
