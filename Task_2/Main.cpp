@@ -2,10 +2,10 @@
 #include <cmath>
 void draw7points(HDC hdc, int xc, int yc, int x, int y)
 {
+    SetPixel(hdc, xc + x, yc + y, RGB(0, 255, 0));
     SetPixel(hdc, xc - x, yc + y, RGB(0, 255, 0));
     SetPixel(hdc, xc + x, yc - y, RGB(0, 0, 255));
     SetPixel(hdc, xc - x, yc - y, RGB(255, 0, 0));
-    SetPixel(hdc, xc + y, yc + x, RGB(165, 42, 42));
     SetPixel(hdc, xc - y, yc + x, RGB(128, 0, 128));
     SetPixel(hdc, xc + y, yc - x, RGB(139, 0, 0));
     SetPixel(hdc, xc - y, yc - x, RGB(0, 0, 0));
@@ -35,6 +35,7 @@ void drawCircle(HDC hdc, int xc, int yc, int r)
 
 void drawShape(HDC hdc, int xc, int yc, int R1, int R2)
 {
+    // Filling between the 2 circles
     for (int r = R2; r >= R1; r--)
     {
         drawCircle(hdc, xc, yc, r);
