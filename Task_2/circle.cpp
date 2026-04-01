@@ -31,3 +31,11 @@ void drawCircle(HDC hdc, int xc, int yc, int r)
         draw7points(hdc, xc, yc, x, y);
     }
 }
+
+void fill(HDC hdc, int xc, int yc, int R1, int R2)
+{
+    for (int r = R2; r >= R1; r--)
+    {
+        drawCircle(hdc, xc, yc, r);
+    }
+}
