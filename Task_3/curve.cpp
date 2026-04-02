@@ -16,46 +16,7 @@ void draw_hermit(HDC hdc, Point p[])
 {
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
-{
-    const char CLASS_NAME[] = "Hermite Window";
-
-    WNDCLASS wc = {};
-    wc.lpfnWndProc = WindowProc;
-    wc.hInstance = hInstance;
-    wc.lpszClassName = CLASS_NAME;
-
-    RegisterClass(&wc);
-
-    HWND hwnd = CreateWindowEx(
-        0,
-        CLASS_NAME,
-        "Hermite Curve Input",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT,
-        800, 600,
-        NULL,
-        NULL,
-        hInstance,
-        NULL
-    );
-
-    if (hwnd == NULL)
-        return 0;
-
-    ShowWindow(hwnd, nCmdShow);
-
-    MSG msg = {};
-    while (GetMessage(&msg, NULL, 0, 0))
-    {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
-
-    return 0;
-}
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     static Point points[4];
     static int clicks = 0;
@@ -86,7 +47,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         for (int i = 0; i < clicks; i++)
         {
-            pointPaint(hdc, points[i].x, points[i].y, RGB(0, 0, 0));
+            SetPixel(hdc, points[i].x, points[i].y, RGB(0, 0, 0));
         }
 
         if (clicks == 4)
@@ -101,4 +62,33 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
 
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+int APIENTRY WinMain(HINSTANCE h, HINSTANCE p, LPSTR c, int nsh)
+{
+	WNDCLASS wc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.hbrBackground = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hIcon = LoadIcon(NULL, IDI_WINLOGO);
+	wc.hInstance = h;
+	wc.lpfnWndProc = WndProc;
+	wc.lpszClassName = "Hermite Window";
+	wc.lpszMenuName = NULL;
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+	RegisterClass(&wc);
+	HWND hwnd = CreateWindow("Hermite Window", "Hermite Curve Input", 
+		WS_OVERLAPPEDWINDOW, 0, 0, 800, 600, NULL, NULL, h, 0);
+	ShowWindow(hwnd, nsh);
+	UpdateWindow(hwnd);
+	MSG msg;
+	while (GetMessage(&msg, NULL, 0, 0) > 0)
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+	return 0;
+
+
 }
