@@ -2,22 +2,24 @@
 #include <vector>
 #include <cmath>
 
-const vector<vector<int>> H = { {1, 0, 0, 0},
+using namespace std;
+
+const vector<vector<float>> H = { {1, 0, 0, 0},
                 {0, 1, 0, 0},
                 {-3, -2, 3, -1},
                 {2, 1, -2, 1}};
-const int n = 4;
+const int n = 1000;
 
 struct Point {
-    int x = 0, y = 0;
+    float x = 0.0, y = 0.0;
 };
 
-vector<vector<int>> multiply(const vector<vector<int>> &m1, const vector<vector<int>> &m2) {
+vector<vector<float>> multiply(const vector<vector<float>> &m1, const vector<vector<float>> &m2) {
     int r1 = m1.size();
     int c1 = m1[0].size();
     int c2 = m2[0].size();
 
-    vector<vector<int>> C(r1, vector<int>(c2, 0));
+    vector<vector<float>> C(r1, vector<float>(c2, 0));
 
     for (int i = 0; i < r1; i++)
         for (int j = 0; j < c2; j++)
@@ -28,17 +30,17 @@ vector<vector<int>> multiply(const vector<vector<int>> &m1, const vector<vector<
 }
 
 void hermite(HDC hdc, Point p1, Point T1, Point p2, Point T2) {
-    vector<vector<int>> G = {{p1.x, p1.y},
+    vector<vector<float>> G = {{p1.x, p1.y},
              {T1.x, T1.y}, // u1, v1
              {p2.x, p2.y},
              {T2.x, T2.y}}; // u2, v2
 
-    vector<vector<int>> C = multiply(H, G);
+    vector<vector<float>> C = multiply(H, G);
 
-    for(float t = 0, t < 1; t += 1/n) {
-        vector<vector<int>> VT = {{2, t, t*t, t*t*t}};
-        vector<vector<int>> X = multiply(VT, C);
-        SetPixel(hdc, round(X[0]), round(X[1]), RGB(0,0,0));
+    for(float t = 0; t < 1; t += 1.0f/n) {
+        vector<vector<float>> VT = {{1, t, t*t, t*t*t}};
+        vector<vector<float>> X = multiply(VT, C);
+        SetPixel(hdc, round(X[0][0]), round(X[0][1]), RGB(255,0,0));
     }
 
 }
@@ -50,13 +52,10 @@ void pointPaint(HDC hdc, int x, int y, COLORREF color)
     SetPixel(hdc, x, y, color);
 }
 
-void draw_hermit(HDC hdc, Point p[])
-{
-}
-
 LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     static Point points[4];
+    static Point points2[4];
     static int clicks = 0;
 
     switch (uMsg)
@@ -90,7 +89,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         if (clicks == 4)
         {
-            draw_hermit(hdc, points);
+            // P1, T1
+            points2[0] = points[0]; // P1
+            points2[1].x = points[1].x - points[0].x;
+            points2[1].y = points[1].y - points[0].y;
+            // P2, T2
+            points2[2] = points[3]; // P2
+            points2[3].x = points[3].x - points[2].x;
+            points2[3].y = points[3].y - points[2].y;
+            hermite(hdc, points2[0], points2[1], points2[2], points2[3]);
             clicks = 0;
         }
 
