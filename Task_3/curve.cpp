@@ -8,7 +8,7 @@ const vector<vector<int>> H = { {1, 0, 0, 0},
                 {0, 1, 0, 0},
                 {-3, -2, 3, -1},
                 {2, 1, -2, 1}};
-const int n = 2000;
+const int n = 2500;
 
 struct Point {
     int x = 0, y = 0;
