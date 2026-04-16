@@ -2,11 +2,11 @@
 #include <cmath>
 void draw7points(HDC hdc, int xc, int yc, int x, int y)
 {
-    SetPixel(hdc, xc + x, yc + y, RGB(0, 255, 0));
-    SetPixel(hdc, xc - x, yc + y, RGB(0, 255, 0));
+    SetPixel(hdc, xc + x, yc + y, RGB(128, 128, 0));
+    SetPixel(hdc, xc - x, yc + y, RGB(0, 128, 128));
     SetPixel(hdc, xc + x, yc - y, RGB(0, 0, 255));
     SetPixel(hdc, xc - x, yc - y, RGB(255, 0, 0));
-    SetPixel(hdc, xc - y, yc + x, RGB(128, 0, 128));
+    SetPixel(hdc, xc - y, yc + x, RGB(255, 0, 255));
     SetPixel(hdc, xc + y, yc - x, RGB(139, 0, 0));
     SetPixel(hdc, xc - y, yc - x, RGB(0, 0, 0));
 }
