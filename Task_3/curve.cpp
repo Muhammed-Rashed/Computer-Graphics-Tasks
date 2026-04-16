@@ -8,7 +8,7 @@ const vector<vector<int>> H = { {1, 0, 0, 0},
                 {0, 1, 0, 0},
                 {-3, -2, 3, -1},
                 {2, 1, -2, 1}};
-const int n = 1000;
+const int n = 2000;
 
 struct Point {
     int x = 0, y = 0;
@@ -106,12 +106,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             // P1, T1
             points2[0] = points[0]; // P1
-            points2[1].x = points[1].x - points[0].x;
-            points2[1].y = points[1].y - points[0].y;
+            points2[1].x = 3 * (points[1].x - points[0].x);
+            points2[1].y = 3 * (points[1].y - points[0].y);
             // P2, T2
             points2[2] = points[3]; // P2
-            points2[3].x = points[3].x - points[2].x;
-            points2[3].y = points[3].y - points[2].y;
+            points2[3].x = 3 * (points[3].x - points[2].x);
+            points2[3].y = 3 * (points[3].y - points[2].y);
             hermite(hdc, points2[0], points2[1], points2[2], points2[3]);
             clicks = 0;
         }
