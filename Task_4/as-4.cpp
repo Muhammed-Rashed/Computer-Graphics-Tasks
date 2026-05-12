@@ -7,6 +7,13 @@ using namespace std;
 #define IDM_ELLIPSE_POLAR 2
 #define IDM_ELLIPSE_MIDPOINT 3
 
+enum Algo
+{
+    ELLIPSE_DIRECT,
+    ELLIPSE_POLAR,
+    ELLIPSE_MIDPOINT
+};
+
 void midpointEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color)
 {
     float dx, dy, d1, d2, x, y;
@@ -68,10 +75,26 @@ void midpointEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color)
     }
 }
 
+// ((x - yc)^2 / rx^2) + ((y - xc)^2 / ry^2) = 1
+void directEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color)
+{
+    double y;
+
+    for (int x = -rx; x <= rx; x++)
+    {
+        y = ry * sqrt(1.0 - ((double)(x * x) / (rx * rx)));
+
+        SetPixel(hdc, xc + x, yc + y, color);
+        SetPixel(hdc, xc + x, yc - y, color);
+    }
+}
+
 LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
 {
     static int clickCount = 0;
     static POINT points[3];
+
+    static Algo currentAlgo = ELLIPSE_MIDPOINT;
 
     switch (mcode)
     {
@@ -91,17 +114,26 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
         {
             HDC hdc = GetDC(hwnd);
 
-            // Center
             int xc = points[0].x;
             int yc = points[0].y;
 
-            // rx
             int rx = abs(points[1].x - xc);
-
-            // ry
             int ry = abs(points[2].y - yc);
 
-            midpointEllipse(hdc, rx, ry, xc, yc, RGB(255, 0, 0));
+            switch (currentAlgo)
+            {
+            case ELLIPSE_DIRECT:
+                directEllipse(hdc, rx, ry, xc, yc, RGB(255, 0, 0));
+                break;
+
+            //case ELLIPSE_POLAR:
+                //polarEllipse(hdc, rx, ry, xc, yc, RGB(0, 255, 0));
+                //break;
+
+            case ELLIPSE_MIDPOINT:
+                midpointEllipse(hdc, rx, ry, xc, yc, RGB(0, 0, 255));
+                break;
+            }
 
             ReleaseDC(hwnd, hdc);
 
@@ -115,8 +147,16 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
     {
         switch (LOWORD(wp))
         {
+        case IDM_ELLIPSE_DIRECT:
+            currentAlgo = ELLIPSE_DIRECT;
+            break;
+
+        case IDM_ELLIPSE_POLAR:
+            currentAlgo = ELLIPSE_POLAR;
+            break;
+
         case IDM_ELLIPSE_MIDPOINT:
-            clickCount = 0;
+            currentAlgo = ELLIPSE_MIDPOINT;
             break;
         }
 
