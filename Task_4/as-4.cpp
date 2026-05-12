@@ -75,17 +75,34 @@ void midpointEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color)
     }
 }
 
-// ((x - yc)^2 / rx^2) + ((y - xc)^2 / ry^2) = 1
+// ((x - xc)^2 / rx^2) + ((y - yc)^2 / ry^2) = 1
 void directEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color)
 {
-    double y;
+    float x, y;
 
-    for (int x = -rx; x <= rx; x++)
+    for (x = -rx; x <= rx; x++)
     {
-        y = ry * sqrt(1.0 - ((double)(x * x) / (rx * rx)));
+        y = ry * sqrt(1.0 - ((x * x) / (rx * rx)));
 
         SetPixel(hdc, xc + x, yc + y, color);
         SetPixel(hdc, xc + x, yc - y, color);
+    }
+}
+
+// x = xc + (rx . cos(@))
+// y = yc + (ry . sin(@))
+void polarEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color){
+    float x, y;
+    float angle = 0;
+    float step = 0.01;
+
+    while(angle <= 2 * M_PI) {
+        x = xc + (rx * cos(angle));
+        y = yc + (ry * sin(angle));
+
+        SetPixel(hdc, round(x), round(y), color);
+
+        angle += step;
     }
 }
 
@@ -126,9 +143,9 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
                 directEllipse(hdc, rx, ry, xc, yc, RGB(255, 0, 0));
                 break;
 
-            //case ELLIPSE_POLAR:
-                //polarEllipse(hdc, rx, ry, xc, yc, RGB(0, 255, 0));
-                //break;
+            case ELLIPSE_POLAR:
+                polarEllipse(hdc, rx, ry, xc, yc, RGB(0, 255, 0));
+                break;
 
             case ELLIPSE_MIDPOINT:
                 midpointEllipse(hdc, rx, ry, xc, yc, RGB(0, 0, 255));
