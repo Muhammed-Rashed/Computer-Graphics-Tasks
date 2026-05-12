@@ -1,11 +1,314 @@
 #include <windows.h>
 #include <cmath>
+#include <fstream>
 #include <ctime>
 using namespace std;
 
 #define IDM_ELLIPSE_DIRECT 1
 #define IDM_ELLIPSE_POLAR 2
 #define IDM_ELLIPSE_MIDPOINT 3
+
+// helper functions
+
+//clear function
+void clear(HWND hwnd, COLORREF bgColor)
+{
+    HDC hdc = GetDC(hwnd);
+    RECT rect;
+    GetClientRect(hwnd, &rect);
+    for(int x = 0; x < rect.right; x++)
+    {
+        for(int y = 0; y < rect.bottom; y++)
+        {
+            SetPixel(hdc, x, y, bgColor);
+        }
+    }
+    ReleaseDC(hwnd, hdc);
+}
+
+// save function
+void save(HWND hwnd, COLORREF bgColor)
+{
+    HDC hdc = GetDC(hwnd);
+    RECT rect;
+    GetClientRect(hwnd, &rect);
+    ofstream file("shapes.txt");
+    for(int x = 0; x < rect.right; x++)
+    {
+        for(int y = 0; y < rect.bottom; y++)
+        {
+            COLORREF color = GetPixel(hdc, x, y);
+            if (color != bgColor) // if not background color
+            {
+                file << x << " " << y << " " << (int)color << endl;
+            }
+        }
+    }
+    file.close();
+    ReleaseDC(hwnd, hdc);
+}
+
+// load function
+void load(HWND hwnd)
+{
+    HDC hdc = GetDC(hwnd);
+    ifstream file("shapes.txt");
+    int x, y;
+    int color;
+    while (file >> x >> y >> color)
+    {
+        SetPixel(hdc, x, y, (COLORREF)color);
+    }
+    file.close();
+    ReleaseDC(hwnd, hdc);
+}
+
+void swap(int& x1, int& x2, int& y1, int& y2)
+{
+    int temp = x1;
+    int temp2 = y1;
+    x1 = x2;
+    y1 = y2;
+    x2 = temp;
+    y2 = temp2;
+}
+
+void draw8points(HDC hdc, int xc, int yc, int x, int y, COLORREF color)
+{
+    SetPixel(hdc, xc + x, yc + y, color);
+    SetPixel(hdc, xc - x, yc + y, color);
+    SetPixel(hdc, xc + x, yc - y, color);
+    SetPixel(hdc, xc - x, yc - y, color);
+    SetPixel(hdc, xc + y, yc + x, color);
+    SetPixel(hdc, xc - y, yc + x, color);
+    SetPixel(hdc, xc + y, yc - x, color);
+    SetPixel(hdc, xc - y, yc - x, color);
+}
+
+// line algorithms
+
+void lineDDA(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
+{
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    if(abs(dy) <= abs(dx))
+    {
+        double m = (double)dy/dx;
+        if(x1 > x2) swap(x1, x2, y1, y2);
+        SetPixel(hdc, x1, y1, color);
+        int x = x1;
+        double y = y1;
+        while(x < x2)
+        {
+            x++;
+            y += m;
+            SetPixel(hdc, x, round(y), color);
+        }
+    
+    }
+    else 
+    {
+        double mi = (double)dx/dy;
+        if (y1 > y2) swap (x1, x2, y1, y2);
+        SetPixel(hdc, x1, y1, color);
+        int y = y1;
+        double x = x1;
+        while(y < y2)
+        {
+            y++;
+            x += mi;
+            SetPixel(hdc, round(x), y, color);
+        }
+    }
+}
+
+// Line midpoint
+void lineMidPoint(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
+{
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+
+    if (abs(dy) <= abs(dx))
+    {
+        if (x1 > x2)
+            swap(x1, x2, y1, y2);
+
+        dx = x2 - x1;
+        dy = y2 - y1;
+
+        int d = 2 * abs(dy) - abs(dx);
+        int change1 = 2 * (abs(dy) - abs(dx));
+        int change2 = 2 * abs(dy);
+
+        int x = x1;
+        int y = y1;
+
+        int yStep = (dy >= 0) ? 1 : -1;
+
+        SetPixel(hdc, x, y, color);
+
+        while (x < x2)
+        {
+            if (d > 0)
+            {
+                d += change1;
+                y += yStep;
+            }
+            else
+            {
+                d += change2;
+            }
+
+            x++;
+            SetPixel(hdc, x, y, color);
+        }
+    }
+    else
+    {
+        if (y1 > y2)
+            swap(x1, x2, y1, y2);
+
+        dx = x2 - x1;
+        dy = y2 - y1;
+
+        int d = 2 * abs(dx) - abs(dy);
+        int change1 = 2 * (abs(dx) - abs(dy));
+        int change2 = 2 * abs(dx);
+
+        int x = x1;
+        int y = y1;
+
+        int xStep = (dx >= 0) ? 1 : -1;
+
+        SetPixel(hdc, x, y, color);
+
+        while (y < y2)
+        {
+            if (d > 0)
+            {
+                d += change1;
+                x += xStep;
+            }
+            else
+            {
+                d += change2;
+            }
+
+            y++;
+            SetPixel(hdc, x, y, color);
+        }
+    }
+}
+
+// line parametric
+void lineParametric(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
+{
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+
+    int steps = max(abs(dx), abs(dy));
+
+    for(double t = 0; t <= 1; t += 1.0 / steps)
+    {
+        int x = round(x1 + t * dx);
+        int y = round(y1 + t * dy);
+
+        SetPixel(hdc, x, y, color);
+    }
+}
+
+// Circle algorithms
+
+// Direct circle algo
+void circleDirect(HDC hdc, int xc, int yc, int r, COLORREF color)
+{
+    int x = 0, y = r;
+    int r2 = r * r;
+    draw8points(hdc, xc, yc, x, y, color);
+    while (x < y)
+    {
+        x++;
+        y = round(sqrt((double)(r2 - x * x)));
+        draw8points(hdc, xc, yc, x, y, color);
+    }
+}
+
+// Polar circle algo
+void circlePolar(HDC hdc, int xc, int yc, int r, COLORREF color)
+{
+    int x = r, y = 0;
+    double theta = 0, dtheta = 1.0 / r;
+    draw8points(hdc, xc, yc, x, y, color);
+    while(x > y)
+    {
+        theta += dtheta;
+        x = round(r * cos(theta));
+        y = round(r * sin(theta));
+        draw8points(hdc, xc, yc, x, y, color);
+    }
+}
+
+// iterative polar circle algo
+void circleIterativePolar(HDC hdc, int xc, int yc, int r, COLORREF color)
+{
+    double x = r, y = 0;
+    double dtheta = 1.0 / r;
+    double cdtheta = cos(dtheta);
+    double sdtheta = sin(dtheta);
+    draw8points(hdc, xc, yc, x, y, color);
+    while (x > y)
+    {
+        double x1 = x * cdtheta - y * sdtheta;
+        y = x * sdtheta + y * cdtheta;
+        x = x1;
+        draw8points(hdc, xc, yc, round(x), round(y), color);
+    }
+}
+
+// Midpoint circle algo
+void circleMidpoint(HDC hdc, int xc, int yc, int r, COLORREF color)
+{
+    int x = 0, y = r;
+    int d = 1 - r;
+    draw8points(hdc, xc, yc, x, y, color);
+    while (x < y)
+    {
+        if (d < 0)
+        {
+            d += 2 * x + 3;
+        }
+        else
+        {
+            d += 2 * (x - y) + 5;
+            y--;
+        }
+        x++;
+        draw8points(hdc, xc, yc, x, y, color);
+    }
+}
+// modified midpoint algo
+void circleModifiedMidPoint(HDC hdc, int xc, int yc, int r, COLORREF color)
+{
+    int x = 0, y = r, d = 1 - r, change1 = 3, change2 = 5 - 2*r;
+    draw8points(hdc, xc, yc, x, y, color);
+    while (x < y)
+    {
+        if (d < 0)
+        {
+            d += change1;
+            change2 += 2;
+        }
+        else
+        {
+            d += change2;
+            change2 += 4;
+            y--;
+        }
+        change1 += 2;
+        x++;
+        draw8points(hdc, xc, yc, x, y, color);
+    }
+}
 
 enum Algo
 {
