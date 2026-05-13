@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <ctime>
 
-#include "headers/utility.h"
+
 #include "headers/line.h"
 #include "headers/ellipse.h"
 #include "headers/circle.h"
@@ -17,6 +17,132 @@ using namespace std;
 const double PI = 3.141592653589793;
 const COLORREF BG_COLOR = RGB(255, 255, 255);
 COLORREF drawColor = RGB(255, 0, 0);
+// ---- Mode enum ----
+enum AppMode
+{
+    MODE_NONE,
+
+    // Clipping
+    MODE_RECT_POINT,
+    MODE_RECT_LINE,
+    MODE_SQUARE_POINT,
+    MODE_SQUARE_LINE,
+    MODE_CIRCLE_POINT,
+    MODE_CIRCLE_LINE,
+
+    // Ellipse
+    MODE_ELLIPSE_DIRECT,
+    MODE_ELLIPSE_POLAR,
+    MODE_ELLIPSE_MIDPOINT,
+
+    // Curves
+    MODE_HERMIT,   // 4 clicks: p1, T1_endpoint, p2, T2_endpoint
+    MODE_CARDINAL, // N clicks, right-click to finish
+
+    // Circle Draw
+    MODE_CIRCLE_DIRECT,
+    MODE_CIRCLE_POLAR,
+    MODE_CIRCLE_POLAR_ITERATIVE,
+    MODE_CIRCLE_MIDPOINT,
+    MODE_CIRCLE_MIDPOINT_MODIFIED,
+
+    // Circle Fill
+    MODE_CIRCLE_QUARTER,   // 3 clicks: center, radius-point, quarter-point
+    MODE_CIRCLE_LINE_FILL, // 3 clicks: center, radius-point, quarter-point
+    MODE_POLYGON_CONVEX,
+    MODE_POLYGON_GENERAL,
+    MODE_FLOODFILL_REC,
+    MODE_FLOODFILL_ITR
+};
+
+// file menu part
+
+struct Shape
+{
+    int type;
+    COLORREF color;
+    vector<Point> pts;
+};
+
+vector<Shape> shapes;
+// clear
+void clear(HWND hwnd, COLORREF bgColor)
+{
+    HDC hdc = GetDC(hwnd);
+
+    RECT rect;
+    GetClientRect(hwnd, &rect);
+
+    HBRUSH brush = CreateSolidBrush(bgColor);
+
+    FillRect(hdc, &rect, brush);
+
+    DeleteObject(brush);
+    ReleaseDC(hwnd, hdc);
+}
+
+// save
+void save()
+{
+    ofstream file("shapes.txt");
+
+    for (auto &s : shapes)
+    {
+        file << s.type << ' '
+             << s.color << ' '
+             << s.pts.size() << '\n';
+
+        for (auto &p : s.pts)
+        {
+            file << p.x << ' ' << p.y << '\n';
+        }
+    }
+
+    file.close();
+}
+
+// load
+void load(HWND hwnd)
+{
+    HDC hdc = GetDC(hwnd);
+
+    ifstream file("shapes.txt");
+
+    shapes.clear();
+
+    while (true)
+    {
+        Shape s;
+
+        int sz;
+
+        file >> s.type >> s.color >> sz;
+
+        if (file.fail()) break;
+
+        for (int i = 0; i < sz; i++)
+        {
+            Point p;
+            file >> p.x >> p.y;
+            s.pts.push_back(p);
+        }
+
+        shapes.push_back(s);
+
+        if (s.type == MODE_CIRCLE_MIDPOINT)
+        {
+            int xc = s.pts[0].x;
+            int yc = s.pts[0].y;
+            int r = s.pts[1].x;
+
+            circleMidpoint(hdc, xc, yc, r, s.color);
+        }
+
+    }
+    ReleaseDC(hwnd, hdc);
+    file.close();
+    
+}
 
 /*
 HOW TO ADD NEW FEATURES
@@ -105,47 +231,9 @@ If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS 
 #define IDM_LOAD 603
 #define IDM_COLOR 604
 
-// ---- Mode enum ----
-enum AppMode
-{
-    MODE_NONE,
-
-    // Clipping
-    MODE_RECT_POINT,
-    MODE_RECT_LINE,
-    MODE_SQUARE_POINT,
-    MODE_SQUARE_LINE,
-    MODE_CIRCLE_POINT,
-    MODE_CIRCLE_LINE,
-
-    // Ellipse
-    MODE_ELLIPSE_DIRECT,
-    MODE_ELLIPSE_POLAR,
-    MODE_ELLIPSE_MIDPOINT,
-
-    // Curves
-    MODE_HERMIT,   // 4 clicks: p1, T1_endpoint, p2, T2_endpoint
-    MODE_CARDINAL, // N clicks, right-click to finish
-
-    // Circle Draw
-    MODE_CIRCLE_DIRECT,
-    MODE_CIRCLE_POLAR,
-    MODE_CIRCLE_POLAR_ITERATIVE,
-    MODE_CIRCLE_MIDPOINT,
-    MODE_CIRCLE_MIDPOINT_MODIFIED,
-
-    // Circle Fill
-    MODE_CIRCLE_QUARTER,   // 3 clicks: center, radius-point, quarter-point
-    MODE_CIRCLE_LINE_FILL, // 3 clicks: center, radius-point, quarter-point
-    MODE_POLYGON_CONVEX,
-    MODE_POLYGON_GENERAL,
-    MODE_FLOODFILL_REC,
-    MODE_FLOODFILL_ITR
-};
-
 // ---- Global state ----
 AppMode mode = MODE_NONE;
-POINT pts[8];
+Point pts[8];
 int clickCount = 0;
 
 vector<Point> cardinalPts;
@@ -301,7 +389,18 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 else if (mode == MODE_CIRCLE_POLAR_ITERATIVE)
                     circleIterativePolar(hdc, xc, yc, r, drawColor);
                 else if (mode == MODE_CIRCLE_MIDPOINT)
+                {
                     circleMidpoint(hdc, xc, yc, r, drawColor);
+                    Shape s;
+                    s.type = MODE_CIRCLE_MIDPOINT;
+                    s.color = drawColor;
+                    Point rad;
+                    rad.x = r; // store radius in x for simplicity
+                    rad.y = 0;
+                    s.pts.push_back(pts[0]);
+                    s.pts.push_back(rad);
+                    shapes.push_back(s);
+                }
                 else
                     circleModifiedMidPoint(hdc, xc, yc, r, drawColor);
                 clickCount = 0;
@@ -442,7 +541,6 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         else if (mode == MODE_FLOODFILL_REC || mode == MODE_FLOODFILL_ITR)
         {
-            HDC hdc = GetDC(hwnd);
 
             COLORREF fillColor = drawColor;
             COLORREF targetColor = GetPixel(hdc, mx, my);
@@ -457,10 +555,8 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
 
             clickCount = 0;
-            ReleaseDC(hwnd, hdc);
         }
 
-        ReleaseDC(hwnd, hdc);
         UpdateTitle(hwnd);
         return 0;
     }
@@ -604,7 +700,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         case IDM_SAVE:
             // TODO Save doesnt actaually save the background color the user uses fix that please
-            save(hwnd, BG_COLOR);
+            save();
             break;
 
         case IDM_LOAD:
