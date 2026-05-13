@@ -19,4 +19,10 @@ void convexFill(HDC hdc, Point p[], int n, COLORREF c);
 void drawPolygon(HDC hdc, const std::vector<Point>& points, COLORREF color);
 bool isConvex(const std::vector<Point>& points);
 
+void nonConvFill(HDC hdc, Point p[], int n, COLORREF c);
+bool isNonConvex(const std::vector<Point>& points);
+
+void floodfillRec(HDC hdc, int x, int y, COLORREF cb, COLORREF cf);
+void floodfillIterative(HDC hdc, int x, int y, COLORREF cb, COLORREF cf);
+
 #endif

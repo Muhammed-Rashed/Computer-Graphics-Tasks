@@ -89,6 +89,8 @@ If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS 
 #define IDM_CIRCLE_LINE_FILL 402
 #define IDM_POLYGON_CONVEX 403
 #define IDM_POLYGON_GENERAL 404
+#define IDM_FLOODFILL_REC 405
+#define IDM_FLOODFILL_ITR 406
 
 // Circle
 #define IDM_CIRCLE_DIRECT 501
@@ -136,7 +138,9 @@ enum AppMode
     MODE_CIRCLE_QUARTER,   // 3 clicks: center, radius-point, quarter-point
     MODE_CIRCLE_LINE_FILL, // 3 clicks: center, radius-point, quarter-point
     MODE_POLYGON_CONVEX,
-    MODE_POLYGON_GENERAL
+    MODE_POLYGON_GENERAL,
+    MODE_FLOODFILL_REC,
+    MODE_FLOODFILL_ITR
 };
 
 // ---- Global state ----
@@ -205,6 +209,12 @@ void UpdateTitle(HWND hwnd)
         break;
     case MODE_CIRCLE_LINE_FILL:
         hint = "[Circ-LineFill]   Click center, radius-pt, quarter-pt";
+        break;
+    case MODE_FLOODFILL_REC:
+        hint = "[Floodfill recursive]   Click area to fill";
+        break;
+    case MODE_FLOODFILL_ITR:
+        hint = "[Floodfill Itrative]   Click area to fill";
         break;
     default:
         hint = "Select a mode from the menus";
@@ -430,6 +440,26 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             SetPixel(hdc, mx, my + 1, drawColor);
         }
 
+        else if (mode == MODE_FLOODFILL_REC || mode == MODE_FLOODFILL_ITR)
+        {
+            HDC hdc = GetDC(hwnd);
+
+            COLORREF fillColor = drawColor;
+            COLORREF targetColor = GetPixel(hdc, mx, my);
+
+            if (mode == MODE_FLOODFILL_REC)
+            {
+                floodfillRec(hdc, mx, my, targetColor, fillColor);
+            }
+            else
+            {
+                floodfillIterative(hdc, mx, my, targetColor, fillColor);
+            }
+
+            clickCount = 0;
+            ReleaseDC(hwnd, hdc);
+        }
+
         ReleaseDC(hwnd, hdc);
         UpdateTitle(hwnd);
         return 0;
@@ -463,12 +493,17 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                     MessageBox(hwnd, "Shape is not convex!", "Error", MB_OK | MB_ICONERROR);
                 }
             }
-            else
+            else if (mode == MODE_POLYGON_GENERAL)
             {
-                convexFill(hdc, &cardinalPts[0], cardinalPts.size(), drawColor);
+                if (!convex)
+                {
+                    MessageBox(hwnd, "Non-convex shape detected. Proceeding with General Fill.", "Information", MB_OK | MB_ICONINFORMATION);
+                }
+
+                nonConvFill(hdc, &cardinalPts[0], cardinalPts.size(), drawColor);
             }
 
-            drawPolygon(hdc, cardinalPts, RGB(0, 0, 0)); // Outline
+            drawPolygon(hdc, cardinalPts, drawColor);
             cardinalPts.clear();
             ReleaseDC(hwnd, hdc);
         }
@@ -553,6 +588,12 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         case IDM_POLYGON_GENERAL:
             mode = MODE_POLYGON_GENERAL;
+            break;
+        case IDM_FLOODFILL_REC:
+            mode = MODE_FLOODFILL_REC;
+            break;
+        case IDM_FLOODFILL_ITR:
+            mode = MODE_FLOODFILL_ITR;
             break;
 
         // Utility
@@ -651,6 +692,8 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE, LPSTR, int nsh)
     AppendMenu(hFill, MF_STRING, IDM_CIRCLE_LINE_FILL, "Quarter Fill (lines)");
     AppendMenu(hFill, MF_STRING, IDM_POLYGON_CONVEX, "Convex Polygon Fill");
     AppendMenu(hFill, MF_STRING, IDM_POLYGON_GENERAL, "General Polygon Fill (Non-Convex)");
+    AppendMenu(hFill, MF_STRING, IDM_FLOODFILL_REC, "Flood Fill Recursive");
+    AppendMenu(hFill, MF_STRING, IDM_FLOODFILL_ITR, "Flood FIll Iterative");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFill, "Circle Fill");
 
     // Utility submenu
