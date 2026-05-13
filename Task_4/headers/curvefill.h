@@ -25,4 +25,7 @@ bool isNonConvex(const std::vector<Point>& points);
 void floodfillRec(HDC hdc, int x, int y, COLORREF cb, COLORREF cf);
 void floodfillIterative(HDC hdc, int x, int y, COLORREF cb, COLORREF cf);
 
+void curveFillSquare(HDC hdc, Point topLeftCorner, int sideLen, COLORREF cf);
+void curveFillRect(HDC hdc, Point topLeftCorner, int width, int height, COLORREF cf);
+
 #endif
