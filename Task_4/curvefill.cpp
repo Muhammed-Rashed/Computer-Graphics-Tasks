@@ -4,6 +4,7 @@
 #include <stack>
 #include <climits>
 #include <algorithm>
+#include <list>
 
 #include "headers/line.h"
 
@@ -327,7 +328,7 @@ void Table2Screen(HDC hdc, Table t, COLORREF c)
     for (int i = 0; i < SCREEN_HEIGHT; i++)
     {
         if (t[i].xleft < t[i].xright)
-            lineMidPoint(hdc, t[i].xleft, i, t[i].xright, i, c);
+            lineMidPoint(hdc, ceil(t[i].xleft), i, floor(t[i].xright), i, c);
     }
 }
 
@@ -380,4 +381,91 @@ bool isConvex(const vector<Point> &points)
             return false; // Signs changed shit..... it's concave
     }
     return true;
+}
+
+
+struct TableListNode {
+    int y;
+    double x, mi;
+    TableListNode(double x, int y, double mi): x(x), y(y), mi(mi) {}
+};
+
+typedef list<TableListNode> TableList[SCREEN_HEIGHT];
+
+void TableListInit(TableList tl) {
+    for(int i = 0; i < SCREEN_HEIGHT; i++) {
+        tl[i].clear();
+    }
+}
+
+// Add intersections to Table
+void nonConvEdge2Table(Point p1, Point p2, TableList t) {
+    if(p1.y == p2.y) return; // Horizontal edge
+
+    if(p1.y > p2.y) swap(p1, p2); // We loop from p1.y to p2.y
+
+    double mi = (double) (p2.x - p1.x) / (p2.y - p1.y); // Slope inverse
+
+    TableListNode node = TableListNode((double)p1.x, p2.y, mi);
+    t[p1.y].push_back(node);
+
+}
+
+void nonConvPolygon2Table(Point p[], int n, TableList t) {
+    Point v1 = p[n-1];
+    for(int i = 0; i < n; i++) {
+        Point v2 = p[i];
+        nonConvEdge2Table(v1, v2, t);
+        v1 = v2;
+    }
+}
+
+void nonConvTable2Screen(HDC hdc, TableList t, COLORREF c) {
+    list<TableListNode> active;
+    int y = 0;
+
+    // Find first valid scanline
+    while(y < SCREEN_HEIGHT && t[y].empty()) y++;
+    if(y == SCREEN_HEIGHT) return; // No edges found
+
+    active = t[y];
+
+    while(!active.empty()) {
+        // Sort active based on x
+        active.sort([](const TableListNode &n1, const TableListNode &n2) {
+            return n1.x < n2.x;
+        });
+
+        for(auto it = active.begin(); it != active.end(); it++) {
+            int x1 = ceil(it->x), y1 = y;
+            
+            it++; // Next node
+            if (it == active.end()) break;
+
+            int x2 = floor(it->x), y2 = y;
+
+            lineMidPoint(hdc, x1, y1, x2, y2, c);
+        }
+
+        y++;
+        // Delete nodes from active having node.y == y
+        auto it = active.begin();
+        while(it != active.end()) {
+            if(it->y == y) it = active.erase(it);
+            else it++;
+        }       
+
+        // Update x
+        for(auto it = active.begin(); it != active.end(); it++) {
+            it->x += it->mi;
+        }
+        active.insert(active.begin(), t[y].begin(), t[y].end());
+    }
+}
+
+void nonConvFill(HDC hdc, Point p[], int n, COLORREF c) {
+    TableList t;
+    TableListInit(t);
+    nonConvPolygon2Table(p, n, t); // Add intersections with polygon to table
+    nonConvTable2Screen(hdc, t, c); // Fill polygon
 }
