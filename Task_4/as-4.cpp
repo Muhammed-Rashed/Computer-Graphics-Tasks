@@ -76,7 +76,7 @@ void drawHappy(HDC hdc, int xc, int yc)
     circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
     // fill with yellow
     COLORREF cb = GetPixel(hdc, xc, yc);
-    floodfillIterative(hdc, xc, yc, cb, RGB(0, 255, 255));
+    floodfillIterative(hdc, xc, yc, cb, RGB(255, 255, 0));
     
 
     // 2. Draw the Nose (Triangle-ish)
@@ -91,11 +91,13 @@ void drawHappy(HDC hdc, int xc, int yc)
     // Inner Pupils (Filled black)
     circleMidpoint(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0));
     // fill with black
-    
+    cb = GetPixel(hdc, xc - 30, yc - 20);
+    floodfillIterative(hdc, xc - 30, yc - 20, cb, RGB(0, 0, 0));
 
     circleMidpoint(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0));
     // fill with black
-    
+    cb = GetPixel(hdc, xc + 30, yc - 20); 
+    floodfillIterative(hdc, xc + 30, yc - 20, cb, RGB(0, 0, 0));
 
     // 4. THE SMILE (Hermite Curve)
     Point p1, p2, T1, T2;
@@ -125,8 +127,10 @@ void drawSad(HDC hdc, int xc, int yc)
     // 1. Draw and Fill the Head
     circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
     // fill with yellow
+    COLORREF cb = GetPixel(hdc, xc, yc);
+    floodfillIterative(hdc, xc, yc, cb, RGB(255, 255, 0));
     
-    
+
     // 2. Draw the Nose (Triangle-ish)
     lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
     lineMidPoint(hdc, xc, yc, xc + 5, yc + 15, RGB(0, 0, 0));
@@ -139,10 +143,13 @@ void drawSad(HDC hdc, int xc, int yc)
     // Inner Pupils (Filled black)
     circleMidpoint(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0));
     // fill with black
-    
+    cb = GetPixel(hdc, xc - 30, yc - 20);
+    floodfillIterative(hdc, xc - 30, yc - 20, cb, RGB(0, 0, 0));
 
     circleMidpoint(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0));
     // fill with black
+    cb = GetPixel(hdc, xc + 30, yc - 20); 
+    floodfillIterative(hdc, xc + 30, yc - 20, cb, RGB(0, 0, 0));
 
     // 4. THE FROWN (Inverted Hermite Curve)
     Point p1, p2, T1, T2;
