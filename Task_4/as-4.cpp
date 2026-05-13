@@ -73,11 +73,9 @@ enum AppMode
 void drawHappy(HDC hdc, int xc, int yc)
 {
     // 1. Draw and Fill the Head
-    circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 1);
-    circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 2);
-    circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 3);
-    circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 4);
     circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
+    // fill with yellow
+    
 
     // 2. Draw the Nose (Triangle-ish)
     lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
@@ -89,15 +87,13 @@ void drawHappy(HDC hdc, int xc, int yc)
     circleMidpoint(hdc, xc + 30, yc - 20, 15, RGB(0, 0, 0));
 
     // Inner Pupils (Filled black)
-    circleFillCircle(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0), 1);
-    circleFillCircle(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0), 2);
-    circleFillCircle(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0), 3);
-    circleFillCircle(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0), 4);
+    circleMidpoint(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0));
+    // fill with black
+    
 
-    circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 1);
-    circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 2);
-    circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 3);
-    circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 4);
+    circleMidpoint(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0));
+    // fill with black
+    
 
     // 4. THE SMILE (Hermite Curve)
     Point p1, p2, T1, T2;
@@ -119,6 +115,54 @@ void drawHappy(HDC hdc, int xc, int yc)
     T2.y = -100; // Negative Y value pulls the curve back up
 
     hermit(hdc, p1, T1, p2, T2, RGB(0, 0, 0));
+}
+
+// sad face
+void drawSad(HDC hdc, int xc, int yc)
+{
+    // 1. Draw and Fill the Head
+    circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
+    // fill with yellow
+    
+    
+    // 2. Draw the Nose (Triangle-ish)
+    lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
+    lineMidPoint(hdc, xc, yc, xc + 5, yc + 15, RGB(0, 0, 0));
+
+    // 3. Draw the Eyes
+    // Outer circles (white of the eyes or just borders)
+    circleMidpoint(hdc, xc - 30, yc - 20, 15, RGB(0, 0, 0));
+    circleMidpoint(hdc, xc + 30, yc - 20, 15, RGB(0, 0, 0));
+
+    // Inner Pupils (Filled black)
+    circleMidpoint(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0));
+    // fill with black
+    
+
+    circleMidpoint(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0));
+    // fill with black
+
+    // 4. THE FROWN (Inverted Hermite Curve)
+    Point p1, p2, T1, T2;
+    
+    // Position the frown slightly lower than the smile
+    p1.x = xc - 30; 
+    p1.y = yc + 45; 
+    
+    p2.x = xc + 30;
+    p2.y = yc + 45;
+    
+    // Inverting the tangents:
+    // T1.y is now negative (points UP first)
+    T1.x = 20;   
+    T1.y = -70; 
+    
+    // T2.y is now positive (comes from UP to DOWN)
+    T2.x = 20;
+    T2.y = 70; 
+    
+    // Draw the frown in black
+    hermit(hdc, p1, T1, p2, T2, RGB(0,0,0)); 
 }
 
 // file menu part
@@ -744,7 +788,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                     drawHappy(hdc, mx, my);
                 else
                     // add code here Abdelrahman
-                    drawHappy(hdc, mx, my);
+                    drawSad(hdc, mx, my);
 
                 clickCount = 0;
             }

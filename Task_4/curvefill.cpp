@@ -73,7 +73,7 @@ void hermit(HDC hdc, Point p1, Point T1, Point p2, Point T2, COLORREF color)
     {
         vector<vector<double>> VT = {{1, t, t * t, t * t * t}};
         vector<vector<double>> X = multiply(VT, C);
-        SetPixel(hdc, round(X[0][0]), round(X[0][1]), RGB(255, 0, 0));
+        SetPixel(hdc, round(X[0][0]), round(X[0][1]), color);
     }
 }
 
