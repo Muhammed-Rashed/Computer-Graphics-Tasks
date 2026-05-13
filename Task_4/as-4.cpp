@@ -9,6 +9,54 @@ using namespace std;
 const double PI = 3.141592653589793;
 const COLORREF BG_COLOR = BG_COLOR;
 
+/*
+HOW TO ADD NEW FEATURES
+========================
+
+1. Add a menu ID at the top:
+#define IDM_SOMETHING 701
+Use a unique number. Current ranges:
+    Clipping=1xx, Ellipse=2xx, Curves=3xx,
+    Circle Fill=4xx, Circle=5xx, Utility=6xx
+
+2. If it needs mouse clicks on the canvas (drawing) then add a mode to the enum:
+MODE_SOMETHING,
+If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS STEP.
+
+3. (Drawing modes only) Add input handling in WM_LBUTTONDOWN:
+    else if (mode == MODE_SOMETHING)
+    {
+        if (clickCount == 2)   // adjust click count as needed
+        {
+            // draw using pts[0], pts[1], etc.
+            clickCount = 0;
+        }
+    }
+
+4. (Drawing modes only) Add a hint in UpdateTitle():
+    case MODE_SOMETHING:
+        hint = "[Something] Click X, then Y";
+        break;
+
+5. Add a case in WM_COMMAND:
+    - Drawing mode:
+        case IDM_SOMETHING:
+            mode = MODE_SOMETHING;
+            break;
+    - Immediate action (utility):
+        case IDM_SOMETHING:
+            doSomething(hwnd);
+            break;
+
+6. Add to a submenu in WinMain:
+    - Appending to an existing submenu:
+        AppendMenu(hExisting, MF_STRING, IDM_SOMETHING, "Something");
+    - Creating a new submenu (don't forget to attach it to hMenu):
+        HMENU hSomething = CreatePopupMenu();
+        AppendMenu(hSomething, MF_STRING, IDM_SOMETHING, "Something");
+        AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSomething, "My Menu");
+*/
+
 // ---- Menu IDs ----
 // Clipping
 #define IDM_RECT_POINT 101
@@ -324,19 +372,23 @@ void draw2lines(HDC hdc, int xc, int yc, int x, int y, int q, COLORREF color)
 // Draw pixels in only 2 octants based on the chosen quarter
 void draw2points(HDC hdc, int xc, int yc, int x, int y, int q, COLORREF color)
 {
-    if(q == 1) {
+    if (q == 1)
+    {
         SetPixel(hdc, xc + x, yc - y, color);
         SetPixel(hdc, xc + y, yc - x, color);
     }
-    else if(q == 2) {
+    else if (q == 2)
+    {
         SetPixel(hdc, xc - x, yc - y, color);
         SetPixel(hdc, xc - y, yc - x, color);
     }
-    else if(q == 3) {
+    else if (q == 3)
+    {
         SetPixel(hdc, xc - x, yc + y, color);
         SetPixel(hdc, xc - y, yc + x, color);
     }
-    else if(q == 4) {
+    else if (q == 4)
+    {
         SetPixel(hdc, xc + x, yc + y, color);
         SetPixel(hdc, xc + y, yc + x, color);
     }
@@ -1089,7 +1141,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
     }
 
-    //  Right button to stop Cardinal spline
+    // Right button to stop Cardinal spline
     case WM_RBUTTONDOWN:
     {
         if (mode == MODE_CARDINAL && cardinalPts.size() >= 2)
@@ -1104,7 +1156,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
     }
 
-    //  Menu
+    // ---- Menu ----
     case WM_COMMAND:
     {
         clickCount = 0;
