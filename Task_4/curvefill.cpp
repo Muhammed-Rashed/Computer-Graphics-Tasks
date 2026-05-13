@@ -501,3 +501,31 @@ void nonConvFill(HDC hdc, Point p[], int n, COLORREF c)
     nonConvPolygon2Table(p, n, t);  // Add intersections with polygon to table
     nonConvTable2Screen(hdc, t, c); // Fill polygon
 }
+
+void curveFillSquare(HDC hdc, Point topLeftCorner, int sideLen, COLORREF cf) {
+    Point zeroTangent; // (0,0)
+    int x = topLeftCorner.x;
+    int y = topLeftCorner.y;
+    while(x < topLeftCorner.x + sideLen) {
+        hermit(hdc, Point(x, y), zeroTangent, Point(x, y + sideLen), zeroTangent, cf);
+        x++;
+    }
+}
+
+// Transformation + Hermit curve 
+void bezier(HDC hdc, Point P1, Point P2, Point P3, Point P4, COLORREF c) {
+    // Calculate tangents from control points
+    Point T1(3*(P2.x - P1.x), 3*(P2.y - P1.y));
+    Point T2(3*(P4.x - P3.x), 3*(P4.y - P3.y));
+
+    hermit(hdc, P1, T1, P4, T2, c);
+}
+
+void curveFillRect(HDC hdc, Point topLeftCorner, int width, int height, COLORREF cf) {
+    int x = topLeftCorner.x;
+    int y = topLeftCorner.y;
+    while(y < topLeftCorner.y + height) {
+        bezier(hdc, Point(x, y), Point(x+1, y), Point(x + width-1, y), Point(x + width, y), cf);
+        y++;
+    }
+}
