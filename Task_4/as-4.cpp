@@ -2,12 +2,21 @@
 #include <cmath>
 #include <vector>
 #include <fstream>
+#include <algorithm>
 #include <ctime>
+
+#include "headers/utility.h"
+#include "headers/line.h"
+#include "headers/ellipse.h"
+#include "headers/circle.h"
+#include "headers/clip.h"
+#include "headers/curvefill.h"
 
 using namespace std;
 
 const double PI = 3.141592653589793;
-const COLORREF BG_COLOR = BG_COLOR;
+const COLORREF BG_COLOR = RGB(255, 255, 255);
+COLORREF drawColor = RGB(255, 0, 0);
 
 /*
 HOW TO ADD NEW FEATURES
@@ -72,7 +81,7 @@ If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS 
 #define IDM_ELLIPSE_MIDPOINT 203
 
 // Curves
-#define IDM_HERMITE 301
+#define IDM_HERMIT 301
 #define IDM_CARDINAL 302
 
 // Circle Fill
@@ -90,6 +99,7 @@ If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS 
 #define IDM_CLEAR 601
 #define IDM_SAVE 602
 #define IDM_LOAD 603
+#define IDM_COLOR 604
 
 // ---- Mode enum ----
 enum AppMode
@@ -110,7 +120,7 @@ enum AppMode
     MODE_ELLIPSE_MIDPOINT,
 
     // Curves
-    MODE_HERMITE,  // 4 clicks: p1, T1_endpoint, p2, T2_endpoint
+    MODE_HERMIT,  // 4 clicks: p1, T1_endpoint, p2, T2_endpoint
     MODE_CARDINAL, // N clicks, right-click to finish
 
     // Circle Draw
@@ -130,739 +140,7 @@ AppMode mode = MODE_NONE;
 POINT pts[8];
 int clickCount = 0;
 
-struct Point
-{
-    int x = 0, y = 0;
-};
 vector<Point> cardinalPts;
-
-// ---- Utility ----
-// clear function
-void clear(HWND hwnd, COLORREF bgColor)
-{
-    HDC hdc = GetDC(hwnd);
-    RECT rect;
-    GetClientRect(hwnd, &rect);
-    for (int x = 0; x < rect.right; x++)
-    {
-        for (int y = 0; y < rect.bottom; y++)
-        {
-            SetPixel(hdc, x, y, bgColor);
-        }
-    }
-    ReleaseDC(hwnd, hdc);
-}
-
-// save function
-void save(HWND hwnd, COLORREF bgColor)
-{
-    HDC hdc = GetDC(hwnd);
-    RECT rect;
-    GetClientRect(hwnd, &rect);
-    ofstream file("shapes.txt");
-    for (int x = 0; x < rect.right; x++)
-    {
-        for (int y = 0; y < rect.bottom; y++)
-        {
-            COLORREF color = GetPixel(hdc, x, y);
-            if (color != bgColor) // if not background color
-            {
-                file << x << " " << y << " " << (int)color << endl;
-            }
-        }
-    }
-    file.close();
-    ReleaseDC(hwnd, hdc);
-}
-
-// load function
-void load(HWND hwnd)
-{
-    HDC hdc = GetDC(hwnd);
-    ifstream file("shapes.txt");
-    int x, y;
-    int color;
-    while (file >> x >> y >> color)
-    {
-        SetPixel(hdc, x, y, (COLORREF)color);
-    }
-    file.close();
-    ReleaseDC(hwnd, hdc);
-}
-
-void swap(int &x1, int &x2, int &y1, int &y2)
-{
-    int temp = x1;
-    int temp2 = y1;
-    x1 = x2;
-    y1 = y2;
-    x2 = temp;
-    y2 = temp2;
-}
-
-void draw8points(HDC hdc, int xc, int yc, int x, int y, COLORREF color)
-{
-    SetPixel(hdc, xc + x, yc + y, color);
-    SetPixel(hdc, xc - x, yc + y, color);
-    SetPixel(hdc, xc + x, yc - y, color);
-    SetPixel(hdc, xc - x, yc - y, color);
-    SetPixel(hdc, xc + y, yc + x, color);
-    SetPixel(hdc, xc - y, yc + x, color);
-    SetPixel(hdc, xc + y, yc - x, color);
-    SetPixel(hdc, xc - y, yc - x, color);
-}
-
-// ---- line algorithms ----
-void lineDDA(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
-{
-    int dx = x2 - x1;
-    int dy = y2 - y1;
-    if (abs(dy) <= abs(dx))
-    {
-        double m = (double)dy / dx;
-        if (x1 > x2)
-            swap(x1, x2, y1, y2);
-        SetPixel(hdc, x1, y1, color);
-        int x = x1;
-        double y = y1;
-        while (x < x2)
-        {
-            x++;
-            y += m;
-            SetPixel(hdc, x, round(y), color);
-        }
-    }
-    else
-    {
-        double mi = (double)dx / dy;
-        if (y1 > y2)
-            swap(x1, x2, y1, y2);
-        SetPixel(hdc, x1, y1, color);
-        int y = y1;
-        double x = x1;
-        while (y < y2)
-        {
-            y++;
-            x += mi;
-            SetPixel(hdc, round(x), y, color);
-        }
-    }
-}
-
-// Line midpoint
-void lineMidPoint(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
-{
-    int dx = x2 - x1;
-    int dy = y2 - y1;
-
-    if (abs(dy) <= abs(dx))
-    {
-        if (x1 > x2)
-            swap(x1, x2, y1, y2);
-
-        dx = x2 - x1;
-        dy = y2 - y1;
-
-        int d = 2 * abs(dy) - abs(dx);
-        int change1 = 2 * (abs(dy) - abs(dx));
-        int change2 = 2 * abs(dy);
-
-        int x = x1;
-        int y = y1;
-
-        int yStep = (dy >= 0) ? 1 : -1;
-
-        SetPixel(hdc, x, y, color);
-
-        while (x < x2)
-        {
-            if (d > 0)
-            {
-                d += change1;
-                y += yStep;
-            }
-            else
-            {
-                d += change2;
-            }
-
-            x++;
-            SetPixel(hdc, x, y, color);
-        }
-    }
-    else
-    {
-        if (y1 > y2)
-            swap(x1, x2, y1, y2);
-
-        dx = x2 - x1;
-        dy = y2 - y1;
-
-        int d = 2 * abs(dx) - abs(dy);
-        int change1 = 2 * (abs(dx) - abs(dy));
-        int change2 = 2 * abs(dx);
-
-        int x = x1;
-        int y = y1;
-
-        int xStep = (dx >= 0) ? 1 : -1;
-
-        SetPixel(hdc, x, y, color);
-
-        while (y < y2)
-        {
-            if (d > 0)
-            {
-                d += change1;
-                x += xStep;
-            }
-            else
-            {
-                d += change2;
-            }
-
-            y++;
-            SetPixel(hdc, x, y, color);
-        }
-    }
-}
-
-// line parametric
-void lineParametric(HDC hdc, int x1, int y1, int x2, int y2, COLORREF color)
-{
-    int dx = x2 - x1;
-    int dy = y2 - y1;
-
-    int steps = max(abs(dx), abs(dy));
-
-    for (double t = 0; t <= 1; t += 1.0 / steps)
-    {
-        int x = round(x1 + t * dx);
-        int y = round(y1 + t * dy);
-
-        SetPixel(hdc, x, y, color);
-    }
-}
-
-// Draw lines in only 2 octants based on the chosen quarter
-void draw2lines(HDC hdc, int xc, int yc, int x, int y, int q, COLORREF color)
-{
-    if (q == 1)
-    {
-        lineMidPoint(hdc, xc + x, yc - y, xc + x, yc, color);
-        lineMidPoint(hdc, xc + y, yc - x, xc + y, yc, color);
-    }
-    else if (q == 2)
-    {
-        lineMidPoint(hdc, xc - x, yc - y, xc - x, yc, color);
-        lineMidPoint(hdc, xc - y, yc - x, xc - y, yc, color);
-    }
-    else if (q == 3)
-    {
-        lineMidPoint(hdc, xc - x, yc + y, xc - x, yc, color);
-        lineMidPoint(hdc, xc - y, yc + x, xc - y, yc, color);
-    }
-    else if (q == 4)
-    {
-        lineMidPoint(hdc, xc + x, yc + y, xc + x, yc, color);
-        lineMidPoint(hdc, xc + y, yc + x, xc + y, yc, color);
-    }
-}
-
-// Draw pixels in only 2 octants based on the chosen quarter
-void draw2points(HDC hdc, int xc, int yc, int x, int y, int q, COLORREF color)
-{
-    if (q == 1)
-    {
-        SetPixel(hdc, xc + x, yc - y, color);
-        SetPixel(hdc, xc + y, yc - x, color);
-    }
-    else if (q == 2)
-    {
-        SetPixel(hdc, xc - x, yc - y, color);
-        SetPixel(hdc, xc - y, yc - x, color);
-    }
-    else if (q == 3)
-    {
-        SetPixel(hdc, xc - x, yc + y, color);
-        SetPixel(hdc, xc - y, yc + x, color);
-    }
-    else if (q == 4)
-    {
-        SetPixel(hdc, xc + x, yc + y, color);
-        SetPixel(hdc, xc + y, yc + x, color);
-    }
-}
-
-void circleQuarterDraw(HDC hdc, int xc, int yc, int r, int q, COLORREF color)
-{
-    int x = 0, y = r, d = 1 - r, c1 = 3, c2 = 5 - 2 * r;
-    draw2points(hdc, xc, yc, x, y, q, color);
-    while (x < y)
-    {
-        if (d < 0)
-        {
-            d += c1;
-            c2 += 2;
-        }
-        else
-        {
-            d += c2;
-            c2 += 4;
-            y--;
-        }
-        c1 += 2;
-        x++;
-        draw2points(hdc, xc, yc, x, y, q, color);
-    }
-}
-
-void circleFillCircle(HDC hdc, int xc, int yc, int r, int q, COLORREF color)
-{
-    for (int ri = r; ri >= 0; ri--)
-        circleQuarterDraw(hdc, xc, yc, ri, q, color);
-}
-
-void lineFillCircle(HDC hdc, int xc, int yc, int r, int q, COLORREF color)
-{
-    int x = 0, y = r, d = 1 - r, c1 = 3, c2 = 5 - 2 * r;
-    draw2lines(hdc, xc, yc, x, y, q, color);
-    while (x < y)
-    {
-        if (d < 0)
-        {
-            d += c1;
-            c2 += 2;
-        }
-        else
-        {
-            d += c2;
-            c2 += 4;
-            y--;
-        }
-        c1 += 2;
-        x++;
-        draw2lines(hdc, xc, yc, x, y, q, color);
-    }
-}
-
-int getQuarter(int xc, int yc, int x, int y)
-{
-    double angle = atan2(yc - y, x - xc);
-    if (angle < 0)
-        angle += 2 * PI;
-    if (angle < PI / 2)
-        return 1;
-    if (angle < PI)
-        return 2;
-    if (angle < 3 * PI / 2)
-        return 3;
-    return 4;
-}
-
-// ---- Ellipse Algorithms ----
-void midpointEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color)
-{
-    float dx, dy, d1, d2, x, y;
-    x = 0;
-    y = ry;
-
-    d1 = (ry * ry) - (rx * rx * ry) + (0.25 * rx * rx);
-    dx = 2 * ry * ry * x;
-    dy = 2 * rx * rx * y;
-
-    // Region 1
-    while (dx < dy)
-    {
-        SetPixel(hdc, x + xc, y + yc, color);
-        SetPixel(hdc, -x + xc, y + yc, color);
-        SetPixel(hdc, x + xc, -y + yc, color);
-        SetPixel(hdc, -x + xc, -y + yc, color);
-
-        if (d1 < 0)
-        {
-            x++;
-            dx = dx + (2 * ry * ry);
-            d1 = d1 + dx + (ry * ry);
-        }
-        else
-        {
-            x++;
-            y--;
-            dx = dx + (2 * ry * ry);
-            dy = dy - (2 * rx * rx);
-            d1 = d1 + dx - dy + (ry * ry);
-        }
-    }
-
-    d2 = ((ry * ry) * ((x + 0.5) * (x + 0.5))) + ((rx * rx) * ((y - 1) * (y - 1))) - (rx * rx * ry * ry);
-
-    // Region 2
-    while (y >= 0)
-    {
-        SetPixel(hdc, x + xc, y + yc, color);
-        SetPixel(hdc, -x + xc, y + yc, color);
-        SetPixel(hdc, x + xc, -y + yc, color);
-        SetPixel(hdc, -x + xc, -y + yc, color);
-
-        if (d2 > 0)
-        {
-            y--;
-            dy = dy - (2 * rx * rx);
-            d2 = d2 + (rx * rx) - dy;
-        }
-        else
-        {
-            y--;
-            x++;
-            dx = dx + (2 * ry * ry);
-            dy = dy - (2 * rx * rx);
-            d2 = d2 + dx - dy + (rx * rx);
-        }
-    }
-}
-
-// ((x - xc)^2 / rx^2) + ((y - yc)^2 / ry^2) = 1
-void directEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color)
-{
-    float x, y;
-
-    for (x = -rx; x <= rx; x++)
-    {
-        y = ry * sqrt(1.0 - ((x * x) / (rx * rx)));
-
-        SetPixel(hdc, xc + x, yc + y, color);
-        SetPixel(hdc, xc + x, yc - y, color);
-    }
-}
-
-// x = xc + (rx . cos(@))
-// y = yc + (ry . sin(@))
-void polarEllipse(HDC hdc, int rx, int ry, int xc, int yc, COLORREF color)
-{
-    float x, y;
-    float angle = 0;
-    float step = 0.01;
-
-    while (angle <= 2 * M_PI)
-    {
-        x = xc + (rx * cos(angle));
-        y = yc + (ry * sin(angle));
-
-        SetPixel(hdc, round(x), round(y), color);
-
-        angle += step;
-    }
-}
-
-// ---- Circle algorithms ----
-
-// Direct circle algo
-void circleDirect(HDC hdc, int xc, int yc, int r, COLORREF color)
-{
-    int x = 0, y = r;
-    int r2 = r * r;
-    draw8points(hdc, xc, yc, x, y, color);
-    while (x < y)
-    {
-        x++;
-        y = round(sqrt((double)(r2 - x * x)));
-        draw8points(hdc, xc, yc, x, y, color);
-    }
-}
-
-// Polar circle algo
-void circlePolar(HDC hdc, int xc, int yc, int r, COLORREF color)
-{
-    int x = r, y = 0;
-    double theta = 0, dtheta = 1.0 / r;
-    draw8points(hdc, xc, yc, x, y, color);
-    while (x > y)
-    {
-        theta += dtheta;
-        x = round(r * cos(theta));
-        y = round(r * sin(theta));
-        draw8points(hdc, xc, yc, x, y, color);
-    }
-}
-
-// iterative polar circle algo
-void circleIterativePolar(HDC hdc, int xc, int yc, int r, COLORREF color)
-{
-    double x = r, y = 0;
-    double dtheta = 1.0 / r;
-    double cdtheta = cos(dtheta);
-    double sdtheta = sin(dtheta);
-    draw8points(hdc, xc, yc, x, y, color);
-    while (x > y)
-    {
-        double x1 = x * cdtheta - y * sdtheta;
-        y = x * sdtheta + y * cdtheta;
-        x = x1;
-        draw8points(hdc, xc, yc, round(x), round(y), color);
-    }
-}
-
-// Midpoint circle algo
-void circleMidpoint(HDC hdc, int xc, int yc, int r, COLORREF color)
-{
-    int x = 0, y = r;
-    int d = 1 - r;
-    draw8points(hdc, xc, yc, x, y, color);
-    while (x < y)
-    {
-        if (d < 0)
-        {
-            d += 2 * x + 3;
-        }
-        else
-        {
-            d += 2 * (x - y) + 5;
-            y--;
-        }
-        x++;
-        draw8points(hdc, xc, yc, x, y, color);
-    }
-}
-// modified midpoint algo
-void circleModifiedMidPoint(HDC hdc, int xc, int yc, int r, COLORREF color)
-{
-    int x = 0, y = r, d = 1 - r, change1 = 3, change2 = 5 - 2 * r;
-    draw8points(hdc, xc, yc, x, y, color);
-    while (x < y)
-    {
-        if (d < 0)
-        {
-            d += change1;
-            change2 += 2;
-        }
-        else
-        {
-            d += change2;
-            change2 += 4;
-            y--;
-        }
-        change1 += 2;
-        x++;
-        draw8points(hdc, xc, yc, x, y, color);
-    }
-}
-
-// ---- Clipping Algorithms ----
-void PointClipping(HDC hdc, int x, int y, int xl, int yt, int xr, int yb, COLORREF color)
-{
-    if (x >= xl && x <= xr && y >= yt && y <= yb)
-        SetPixel(hdc, x, y, color);
-}
-
-// Line Clipping
-union OutCode
-{
-    unsigned All : 4;
-    struct
-    {
-        unsigned left : 1, top : 1, right : 1, bottom : 1;
-    };
-};
-
-OutCode GetOutCode(double x, double y, int xleft, int ytop, int xright, int ybottom)
-{
-    OutCode out;
-    out.All = 0;
-    if (x < xleft)
-        out.left = 1;
-    else if (x > xright)
-        out.right = 1;
-    if (y < ytop)
-        out.top = 1;
-    else if (y > ybottom)
-        out.bottom = 1;
-    return out;
-}
-
-void VIntersect(double xs, double ys, double xe, double ye, int x, double *xi, double *yi)
-{
-    *xi = x;
-    *yi = ys + (x - xs) * (ye - ys) / (xe - xs);
-}
-
-void HIntersect(double xs, double ys, double xe, double ye, int y, double *xi, double *yi)
-{
-    *yi = y;
-    *xi = xs + (y - ys) * (xe - xs) / (ye - ys);
-}
-
-void CohenSutherlandClip(HDC hdc, int xs, int ys, int xe, int ye, int xleft, int ytop, int xright, int ybottom, COLORREF color)
-{
-    double x1 = xs, y1 = ys, x2 = xe, y2 = ye;
-    OutCode out1 = GetOutCode(x1, y1, xleft, ytop, xright, ybottom);
-    OutCode out2 = GetOutCode(x2, y2, xleft, ytop, xright, ybottom);
-
-    while ((out1.All || out2.All) && !(out1.All & out2.All))
-    {
-        double xi, yi;
-        if (out1.All)
-        {
-            if (out1.left)
-                VIntersect(x1, y1, x2, y2, xleft, &xi, &yi);
-            else if (out1.top)
-                HIntersect(x1, y1, x2, y2, ytop, &xi, &yi);
-            else if (out1.right)
-                VIntersect(x1, y1, x2, y2, xright, &xi, &yi);
-            else
-                HIntersect(x1, y1, x2, y2, ybottom, &xi, &yi);
-            x1 = xi;
-            y1 = yi;
-            out1 = GetOutCode(x1, y1, xleft, ytop, xright, ybottom);
-        }
-        else
-        {
-            if (out2.left)
-                VIntersect(x1, y1, x2, y2, xleft, &xi, &yi);
-            else if (out2.top)
-                HIntersect(x1, y1, x2, y2, ytop, &xi, &yi);
-            else if (out2.right)
-                VIntersect(x1, y1, x2, y2, xright, &xi, &yi);
-            else
-                HIntersect(x1, y1, x2, y2, ybottom, &xi, &yi);
-            x2 = xi;
-            y2 = yi;
-            out2 = GetOutCode(x2, y2, xleft, ytop, xright, ybottom);
-        }
-    }
-
-    if (!out1.All && !out2.All)
-    {
-        MoveToEx(hdc, round(x1), round(y1), NULL);
-        LineTo(hdc, round(x2), round(y2));
-    }
-}
-
-// Circle Window Clipping
-bool insideCircle(int x, int y, int xc, int yc, int r)
-{
-    int dx = x - xc;
-    int dy = y - yc;
-    return (dx * dx + dy * dy) <= r * r;
-}
-
-void circlePointClipping(HDC hdc, int x, int y, int xc, int yc, int r, COLORREF color)
-{
-    if (insideCircle(x, y, xc, yc, r))
-    {
-        SetPixel(hdc, x, y, color);
-    }
-}
-
-void circleLineClipping(HDC hdc, int x1, int y1, int x2, int y2, int xc, int yc, int r, COLORREF color)
-{
-    int dx = x2 - x1;
-    int dy = y2 - y1;
-
-    int steps = max(abs(dx), abs(dy));
-
-    double xInc = (double)dx / steps;
-    double yInc = (double)dy / steps;
-
-    double x = x1;
-    double y = y1;
-
-    for (int i = 0; i <= steps; i++)
-    {
-        if (insideCircle(round(x), round(y), xc, yc, r))
-        {
-            SetPixel(hdc, round(x), round(y), color);
-        }
-
-        x += xInc;
-        y += yInc;
-    }
-}
-
-// ---- Curve Algorithms ----
-vector<vector<int>> multiply(const vector<vector<int>> &m1, const vector<vector<int>> &m2)
-{
-    int r1 = m1.size();
-    int c1 = m1[0].size();
-    int c2 = m2[0].size();
-
-    vector<vector<int>> C(r1, vector<int>(c2, 0));
-
-    for (int i = 0; i < r1; i++)
-        for (int j = 0; j < c2; j++)
-            for (int k = 0; k < c1; k++)
-                C[i][j] += m1[i][k] * m2[k][j];
-
-    return C;
-}
-
-vector<vector<double>> multiply(const vector<vector<double>> &m1, const vector<vector<int>> &m2)
-{
-    int r1 = m1.size();
-    int c1 = m1[0].size();
-    int c2 = m2[0].size();
-
-    vector<vector<double>> C(r1, vector<double>(c2, 0));
-
-    for (int i = 0; i < r1; i++)
-        for (int j = 0; j < c2; j++)
-            for (int k = 0; k < c1; k++)
-                C[i][j] += m1[i][k] * m2[k][j];
-
-    return C;
-}
-
-void hermite(HDC hdc, Point p1, Point T1, Point p2, Point T2, COLORREF color)
-{
-    // Hermite matrix
-    const vector<vector<int>> H = {{1, 0, 0, 0},
-                                   {0, 1, 0, 0},
-                                   {-3, -2, 3, -1},
-                                   {2, 1, -2, 1}};
-
-    // # of points to be drawn
-    const int n = 2500;
-
-    vector<vector<int>> G = {{p1.x, p1.y},
-                             {T1.x, T1.y}, // u1, v1
-                             {p2.x, p2.y},
-                             {T2.x, T2.y}}; // u2, v2
-
-    vector<vector<int>> C = multiply(H, G);
-
-    for (double t = 0; t < 1; t += 1.0f / n)
-    {
-        vector<vector<double>> VT = {{1, t, t * t, t * t * t}};
-        vector<vector<double>> X = multiply(VT, C);
-        SetPixel(hdc, round(X[0][0]), round(X[0][1]), RGB(255, 0, 0));
-    }
-}
-
-void cardinalSpline(HDC hdc, const vector<Point> &points, double c, COLORREF color)
-{
-    int n = points.size(); // # of points
-
-    if (n <= 2)
-        return; // Can't draw with 2 points or less
-
-    vector<Point> T(n); // Tangents for all points except the first and last points
-
-    for (int i = 1; i < n - 1; i++)
-    {
-        T[i].x = c * (points[i + 1].x - points[i - 1].x);
-        T[i].y = c * (points[i + 1].y - points[i - 1].y);
-    }
-
-    // Repeat the first and last calculated tangents to include first and last points
-    T[0] = T[1];
-    T[n - 1] = T[n - 2];
-
-    // Draw hermite curve from every point to the next
-    for (int i = 0; i < n - 1; i++)
-    {
-        hermite(hdc, points[i], T[i], points[i + 1], T[i + 1], color);
-    }
-}
 
 void UpdateTitle(HWND hwnd)
 {
@@ -897,8 +175,8 @@ void UpdateTitle(HWND hwnd)
     case MODE_ELLIPSE_MIDPOINT:
         hint = "[Ellipse-Midpt]   Click center, then X-radius pt, then Y-radius pt";
         break;
-    case MODE_HERMITE:
-        hint = "[Hermite]    Click P1, T1-end, P2, T2-end";
+    case MODE_HERMIT:
+        hint = "[Hermit]    Click P1, T1-end, P2, T2-end";
         break;
     case MODE_CARDINAL:
         hint = "[Cardinal]   Left-click to add points, Right-click to draw";
@@ -959,7 +237,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             {
                 int xl = min(pts[0].x, pts[1].x), xr = max(pts[0].x, pts[1].x);
                 int yt = min(pts[0].y, pts[1].y), yb = max(pts[0].y, pts[1].y);
-                PointClipping(hdc, mx, my, xl, yt, xr, yb, RGB(255, 0, 0));
+                PointClipping(hdc, mx, my, xl, yt, xr, yb, drawColor);
                 clickCount = 0;
             }
         }
@@ -973,7 +251,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 int xl = min(pts[0].x, pts[1].x), xr = max(pts[0].x, pts[1].x);
                 int yt = min(pts[0].y, pts[1].y), yb = max(pts[0].y, pts[1].y);
                 CohenSutherlandClip(hdc, pts[2].x, pts[2].y, pts[3].x, pts[3].y,
-                                    xl, yt, xr, yb, RGB(0, 0, 255));
+                                    xl, yt, xr, yb, drawColor);
                 clickCount = 0;
             }
         }
@@ -989,7 +267,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             {
                 int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
                 PointClipping(hdc, mx, my, pts[0].x, pts[0].y,
-                              pts[0].x + side, pts[0].y + side, RGB(255, 0, 255));
+                              pts[0].x + side, pts[0].y + side, drawColor);
                 clickCount = 0;
             }
         }
@@ -1003,15 +281,15 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 int xc = pts[0].x, yc = pts[0].y;
                 int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 if (mode == MODE_CIRCLE_DIRECT)
-                    circleDirect(hdc, xc, yc, r, RGB(255, 0, 0));
+                    circleDirect(hdc, xc, yc, r, drawColor);
                 else if (mode == MODE_CIRCLE_POLAR)
-                    circlePolar(hdc, xc, yc, r, RGB(0, 180, 0));
+                    circlePolar(hdc, xc, yc, r, drawColor);
                 else if (mode == MODE_CIRCLE_POLAR_ITERATIVE)
-                    circleIterativePolar(hdc, xc, yc, r, RGB(0, 0, 255));
+                    circleIterativePolar(hdc, xc, yc, r, drawColor);
                 else if (mode == MODE_CIRCLE_MIDPOINT)
-                    circleMidpoint(hdc, xc, yc, r, RGB(200, 100, 0));
+                    circleMidpoint(hdc, xc, yc, r, drawColor);
                 else
-                    circleModifiedMidPoint(hdc, xc, yc, r, RGB(150, 0, 200));
+                    circleModifiedMidPoint(hdc, xc, yc, r, drawColor);
                 clickCount = 0;
             }
         }
@@ -1028,7 +306,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
                 CohenSutherlandClip(hdc, pts[2].x, pts[2].y, pts[3].x, pts[3].y,
                                     pts[0].x, pts[0].y,
-                                    pts[0].x + side, pts[0].y + side, RGB(0, 255, 0));
+                                    pts[0].x + side, pts[0].y + side, drawColor);
                 clickCount = 0;
             }
         }
@@ -1045,7 +323,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             {
                 int xc = pts[0].x, yc = pts[0].y;
                 int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
-                circlePointClipping(hdc, mx, my, xc, yc, r, RGB(255, 128, 0));
+                circlePointClipping(hdc, mx, my, xc, yc, r, drawColor);
                 clickCount = 0;
             }
         }
@@ -1063,7 +341,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 int xc = pts[0].x, yc = pts[0].y;
                 int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 circleLineClipping(hdc, pts[2].x, pts[2].y, pts[3].x, pts[3].y,
-                                   xc, yc, r, RGB(0, 128, 255));
+                                   xc, yc, r, drawColor);
                 clickCount = 0;
             }
         }
@@ -1074,9 +352,9 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             {
                 int xc = pts[0].x, yc = pts[0].y;
                 int rx = abs(pts[1].x - xc), ry = abs(pts[2].y - yc);
-                COLORREF col = (mode == MODE_ELLIPSE_DIRECT)  ? RGB(255, 0, 0)
-                               : (mode == MODE_ELLIPSE_POLAR) ? RGB(0, 200, 0)
-                                                              : RGB(0, 0, 255);
+                COLORREF col = (mode == MODE_ELLIPSE_DIRECT)  ? drawColor
+                               : (mode == MODE_ELLIPSE_POLAR) ? drawColor
+                                                              : drawColor;
                 if (mode == MODE_ELLIPSE_DIRECT)
                     directEllipse(hdc, rx, ry, xc, yc, col);
                 else if (mode == MODE_ELLIPSE_POLAR)
@@ -1087,10 +365,10 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
         }
 
-        else if (mode == MODE_HERMITE)
+        else if (mode == MODE_HERMIT)
         {
             // Draw small marker
-            SetPixel(hdc, mx, my, RGB(128, 128, 128));
+            SetPixel(hdc, mx, my, drawColor);
             if (clickCount == 4)
             {
                 Point p1{pts[0].x, pts[0].y};
@@ -1098,7 +376,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 Point T1{(pts[1].x - pts[0].x) * 3, (pts[1].y - pts[0].y) * 3};
                 Point p2{pts[2].x, pts[2].y};
                 Point T2{(pts[3].x - pts[2].x) * 3, (pts[3].y - pts[2].y) * 3};
-                hermite(hdc, p1, T1, p2, T2, RGB(200, 50, 200));
+                hermit(hdc, p1, T1, p2, T2, drawColor);
                 clickCount = 0;
             }
         }
@@ -1109,9 +387,9 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             p.x = mx;
             p.y = my;
             cardinalPts.push_back(p);
-            SetPixel(hdc, mx, my, RGB(0, 150, 0));
-            SetPixel(hdc, mx + 1, my, RGB(0, 150, 0));
-            SetPixel(hdc, mx, my + 1, RGB(0, 150, 0));
+            SetPixel(hdc, mx, my, drawColor);
+            SetPixel(hdc, mx + 1, my, drawColor);
+            SetPixel(hdc, mx, my + 1, drawColor);
             clickCount = (int)cardinalPts.size(); // keep count in sync
         }
 
@@ -1121,7 +399,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             {
                 int xc = pts[0].x, yc = pts[0].y;
                 int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
-                circleMidpoint(hdc, xc, yc, r, RGB(0, 0, 0));
+                circleMidpoint(hdc, xc, yc, r, drawColor);
             }
             else if (clickCount == 3)
             {
@@ -1129,9 +407,9 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 int q = getQuarter(xc, yc, mx, my);
                 if (mode == MODE_CIRCLE_QUARTER)
-                    circleFillCircle(hdc, xc, yc, r, q, RGB(255, 80, 0));
+                    circleFillCircle(hdc, xc, yc, r, q, drawColor);
                 else
-                    lineFillCircle(hdc, xc, yc, r, q, RGB(0, 180, 180));
+                    lineFillCircle(hdc, xc, yc, r, q, drawColor);
                 clickCount = 0;
             }
         }
@@ -1147,7 +425,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         if (mode == MODE_CARDINAL && cardinalPts.size() >= 2)
         {
             HDC hdc = GetDC(hwnd);
-            cardinalSpline(hdc, cardinalPts, 0.5, RGB(0, 0, 180));
+            cardinalSplineCurve(hdc, cardinalPts, 0.5, drawColor);
             ReleaseDC(hwnd, hdc);
             cardinalPts.clear();
             clickCount = 0;
@@ -1213,8 +491,8 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             break;
 
         // Curves
-        case IDM_HERMITE:
-            mode = MODE_HERMITE;
+        case IDM_HERMIT:
+            mode = MODE_HERMIT;
             break;
         case IDM_CARDINAL:
             mode = MODE_CARDINAL;
@@ -1233,14 +511,29 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             clear(hwnd, BG_COLOR);
             mode = MODE_NONE;
             break;
+            
         case IDM_SAVE:
             // TODO Save doesnt actaually save the background color the user uses fix that please
             save(hwnd, BG_COLOR);
             break;
+
         case IDM_LOAD:
             load(hwnd);
             break;
+
+        case IDM_COLOR:
+            static COLORREF customColors[16] = {};
+            CHOOSECOLOR cc = {};
+            cc.lStructSize = sizeof(cc);
+            cc.hwndOwner = hwnd;
+            cc.rgbResult = drawColor;
+            cc.lpCustColors = customColors;
+            cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+            if (ChooseColor(&cc))
+                drawColor = cc.rgbResult;
+            break;
         }
+
         UpdateTitle(hwnd);
         return 0;
     }
@@ -1290,7 +583,7 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE, LPSTR, int nsh)
 
     // Curves submenu
     HMENU hCurve = CreatePopupMenu();
-    AppendMenu(hCurve, MF_STRING, IDM_HERMITE, "Hermite  (4 clicks)");
+    AppendMenu(hCurve, MF_STRING, IDM_HERMIT, "Hermit  (4 clicks)");
     AppendMenu(hCurve, MF_STRING, IDM_CARDINAL, "Cardinal (LClick=add, RClick=draw)");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hCurve, "Curves");
 
@@ -1314,6 +607,7 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE, LPSTR, int nsh)
     AppendMenu(hUtil, MF_STRING, IDM_CLEAR, "Clear");
     AppendMenu(hUtil, MF_STRING, IDM_SAVE, "Save to file");
     AppendMenu(hUtil, MF_STRING, IDM_LOAD, "Load from file");
+    AppendMenu(hUtil, MF_STRING, IDM_COLOR, "Pick Color");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hUtil, "Utility");
 
     SetMenu(hwnd, hMenu);

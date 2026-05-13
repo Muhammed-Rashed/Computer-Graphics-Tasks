@@ -3,6 +3,9 @@
 #include <cmath>
 #include <stack>
 #include <climits>
+#include <algorithm>
+
+#include "headers/line.h"
 
 using namespace std;
 
@@ -44,7 +47,7 @@ vector<vector<double>> multiply(const vector<vector<double>> &m1, const vector<v
     return C;
 }
 
-void hermit(HDC hdc, Point p1, Point T1, Point p2, Point T2) {
+void hermit(HDC hdc, Point p1, Point T1, Point p2, Point T2, COLORREF color) {
     // Hermit matrix
     const vector<vector<int>> H = { {1, 0, 0, 0},
                 {0, 1, 0, 0},
@@ -69,7 +72,7 @@ void hermit(HDC hdc, Point p1, Point T1, Point p2, Point T2) {
 
 }
 
-void cardinalSplineCurve(HDC hdc, const vector<Point> &points, double c) {
+void cardinalSplineCurve(HDC hdc, const vector<Point> &points, double c, COLORREF color) {
     int n = points.size(); // # of points
     
     if(n <= 2) return; // Can't draw with 2 points or less
@@ -87,7 +90,7 @@ void cardinalSplineCurve(HDC hdc, const vector<Point> &points, double c) {
 
     // Draw hermit curve from every point to the next
     for(int i = 0; i < n-1; i++) {
-        hermit(hdc, points[i], T[i], points[i+1], T[i+1]);
+        hermit(hdc, points[i], T[i], points[i+1], T[i+1], color);
     }
 }
 
@@ -238,6 +241,7 @@ void floodfillIterative(HDC hdc, int x, int y, COLORREF cb, COLORREF cf) {
 
 struct Record {
     double xleft, xright;
+    Record(): xleft(INT_MAX), xright(INT_MIN) {}
     Record(double left, double right): xleft(left), xright(right) {}
 };
 
