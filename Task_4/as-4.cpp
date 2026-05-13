@@ -104,44 +104,40 @@ void save()
 // load
 void load(HWND hwnd)
 {
-    HDC hdc = GetDC(hwnd);
-
     ifstream file("shapes.txt");
+    if (!file.is_open()) return; // Safety check
 
     shapes.clear();
+    clear(hwnd, BG_COLOR); // Wipe the screen before reloading
 
-    while (true)
+    HDC hdc = GetDC(hwnd);
+    Shape s;
+    int sz;
+    // This is the robust way to check for end-of-file while reading
+    while (file >> s.type >> s.color >> sz)
     {
-        Shape s;
-
-        int sz;
-
-        file >> s.type >> s.color >> sz;
-
-        if (file.fail()) break;
-
+        s.pts.clear(); // Clear previous points from the shape object
         for (int i = 0; i < sz; i++)
         {
             Point p;
-            file >> p.x >> p.y;
+            if (!(file >> p.x >> p.y)) break; 
             s.pts.push_back(p);
         }
 
         shapes.push_back(s);
 
-        if (s.type == MODE_CIRCLE_MIDPOINT)
+        // Immediate Drawing
+        if (s.type == MODE_CIRCLE_MIDPOINT && s.pts.size() >= 2)
         {
             int xc = s.pts[0].x;
             int yc = s.pts[0].y;
-            int r = s.pts[1].x;
-
+            int r  = s.pts[1].x; 
             circleMidpoint(hdc, xc, yc, r, s.color);
         }
-
     }
+
     ReleaseDC(hwnd, hdc);
     file.close();
-    
 }
 
 /*
