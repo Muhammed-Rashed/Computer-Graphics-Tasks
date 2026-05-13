@@ -1,13 +1,17 @@
 #include <windows.h>
 #include <vector>
 #include <cmath>
+#include <stack>
+#include <climits>
 
 using namespace std;
 
 const double PI = 3.141592653589793;
+const int SCREEN_HEIGHT = 800;
 
 struct Point {
-    int x = 0, y = 0;
+    int x, y;
+    Point(int x = 0, int y = 0):x(x), y(y){}
 };
 
 vector<vector<int>> multiply(const vector<vector<int>> &m1, const vector<vector<int>> &m2) {
@@ -40,8 +44,8 @@ vector<vector<double>> multiply(const vector<vector<double>> &m1, const vector<v
     return C;
 }
 
-void hermite(HDC hdc, Point p1, Point T1, Point p2, Point T2) {
-    // Hermite matrix
+void hermit(HDC hdc, Point p1, Point T1, Point p2, Point T2) {
+    // Hermit matrix
     const vector<vector<int>> H = { {1, 0, 0, 0},
                 {0, 1, 0, 0},
                 {-3, -2, 3, -1},
@@ -81,9 +85,9 @@ void cardinalSplineCurve(HDC hdc, const vector<Point> &points, double c) {
     T[0] = T[1];
     T[n-1] = T[n-2];
 
-    // Draw hermite curve from every point to the next
+    // Draw hermit curve from every point to the next
     for(int i = 0; i < n-1; i++) {
-        hermite(hdc, points[i], T[i], points[i+1], T[i+1]);
+        hermit(hdc, points[i], T[i], points[i+1], T[i+1]);
     }
 }
 
@@ -199,4 +203,94 @@ void circleFillCircle(HDC hdc, int xc, int yc, int r, int quarter, COLORREF colo
     {
         circleQuarter(hdc, xc, yc, r, quarter, color);
     }
+}
+
+// Recursive flood fill
+void floodfillRec(HDC hdc, int x, int y, COLORREF cb, COLORREF cf) {
+    COLORREF c = GetPixel(hdc, x, y);
+    if(c == cb || c == cf) return;
+
+    SetPixel(hdc, x, y, cf);
+
+    floodfillRec(hdc, x+1, y, cb, cf);
+    floodfillRec(hdc, x-1, y, cb, cf);
+    floodfillRec(hdc, x, y+1, cb, cf);
+    floodfillRec(hdc, x, y-1, cb, cf);
+}
+
+// Iterative flood fill
+void floodfillIterative(HDC hdc, int x, int y, COLORREF cb, COLORREF cf) {
+    stack<Point> s;
+    s.push(Point(x,y));
+
+    while(!s.empty()) {
+        Point p = s.top();
+        s.pop();
+        COLORREF c = GetPixel(hdc, p.x, p.y);
+        if(c == cb || c == cf) continue;
+        SetPixel(hdc, p.x, p.y, cf);
+        s.push(Point(p.x+1,p.y));
+        s.push(Point(p.x-1,p.y));
+        s.push(Point(p.x,p.y+1));
+        s.push(Point(p.x,p.y-1));
+    }
+}
+
+struct Record {
+    double xleft, xright;
+    Record(double left, double right): xleft(left), xright(right) {}
+};
+
+// A table of intersections
+typedef Record Table[SCREEN_HEIGHT];
+
+// Initialize Table
+void TableInit(Table t) {
+    for(int i = 0; i < SCREEN_HEIGHT; i++) {
+        t[i].xleft = INT_MAX;
+        t[i].xright = INT_MIN;
+    }
+}
+
+// Add intersections to Table
+void edge2Table(Point p1, Point p2, Table t) {
+    if(p1.y == p2.y) return; // Horizontal edge
+
+    if(p1.y > p2.y) swap(p1, p2); // We loop from p1.y to p2.y
+
+    int y = p1.y;
+    double x = p1.x;
+    double mi = (double) (p2.x - p1.x) / (p2.y - p1.y); // Slope inverse
+
+    while(y < p2.y) {
+        if(x < t[y].xleft) t[y].xleft = x;
+        if(x > t[y].xright) t[y].xright = x;
+        y++;
+        x += mi;
+    }
+}
+
+void polygon2Table(Point p[], int n, Table t) {
+    Point v1 = p[n-1];
+    for(int i = 0; i < n; i++) {
+        Point v2 = p[i];
+        edge2Table(v1, v2, t);
+        v1 = v2;
+    }
+}
+
+// Draw a line between every 2 intersections
+void Table2Screen(HDC hdc, Table t, COLORREF c) {
+    for(int i = 0; i < SCREEN_HEIGHT; i++) {
+        if(t[i].xleft < t[i].xright)
+            lineMidPoint(hdc, t[i].xleft, i, t[i].xright, i, c);
+    }
+}
+
+// Convex polygon fill
+void convexFill(HDC hdc, Point p[], int n, COLORREF c) {
+    Table t;
+    TableInit(t); // Initialize table with +inf and -inf
+    polygon2Table(p, n, t); // Add intersections with polygon to table
+    Table2Screen(hdc, t, c); // Fill polygon
 }
