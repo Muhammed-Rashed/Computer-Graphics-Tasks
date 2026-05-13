@@ -67,6 +67,60 @@ enum AppMode
     MODE_SAD
 };
 
+// bonus faces part
+
+// happy face
+void drawHappy(HDC hdc, int xc, int yc)
+{
+    // 1. Draw and Fill the Head
+    circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 1);
+    circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 2);
+    circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 3);
+    circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 4);
+    circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0));           // Black Border
+
+    // 2. Draw the Nose (Triangle-ish)
+    lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
+    lineMidPoint(hdc, xc, yc, xc + 5, yc + 15, RGB(0, 0, 0));
+
+    // 3. Draw the Eyes
+    // Outer circles (white of the eyes or just borders)
+    circleMidpoint(hdc, xc - 30, yc - 20, 15, RGB(0, 0, 0));
+    circleMidpoint(hdc, xc + 30, yc - 20, 15, RGB(0, 0, 0));
+
+    // Inner Pupils (Filled black)
+    circleFillCircle(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0), 1);
+    circleFillCircle(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0), 2);
+    circleFillCircle(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0), 3);
+    circleFillCircle(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0), 4);
+
+    circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 1);
+    circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 2);
+    circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 3);
+    circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 4);
+    
+    // 4. THE SMILE (Hermite Curve)
+    Point p1, p2, T1, T2;
+    
+    // Start point of smile (left side)
+    p1.x = xc - 34; 
+    p1.y = yc + 30;
+    
+    // End point of smile (right side)
+    p2.x = xc + 34;
+    p2.y = yc + 30;
+    
+    // Tangent T1: Points DOWN and slightly right 
+    T1.x = 20;   
+    T1.y = 100;  // High Y value creates the downward dip
+    
+    // Tangent T2: Points UP and slightly right
+    T2.x = 20;
+    T2.y = -100; // Negative Y value pulls the curve back up
+    
+    hermit(hdc, p1, T1, p2, T2, RGB(0,0,0));
+}
+
 // file menu part
 
 struct Shape
