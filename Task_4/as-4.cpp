@@ -28,6 +28,8 @@ enum AppMode
     MODE_SQUARE_LINE,
     MODE_CIRCLE_POINT,
     MODE_CIRCLE_LINE,
+    MODE_RECT_POLYGON,
+    MODE_SQUARE_POLYGON,
 
     // Ellipse
     MODE_ELLIPSE_DIRECT,
@@ -46,12 +48,14 @@ enum AppMode
     MODE_CIRCLE_MIDPOINT_MODIFIED,
 
     // Circle Fill
-    MODE_CIRCLE_QUARTER,   // 3 clicks: center, radius-point, quarter-point
-    MODE_CIRCLE_LINE_FILL, // 3 clicks: center, radius-point, quarter-point
+    MODE_CIRCLE_QUARTER,
+    MODE_CIRCLE_LINE_FILL,
     MODE_POLYGON_CONVEX,
     MODE_POLYGON_GENERAL,
     MODE_FLOODFILL_REC,
     MODE_FLOODFILL_ITR,
+    MODE_FILL_SQUARE_HERMIT,
+    MODE_FILL_RECT_BEZIER,
 
     // Line
     MODE_LINE_DDA,
@@ -206,6 +210,8 @@ If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS 
 #define IDM_SQUARE_LINE 104
 #define IDM_CIRCLE_POINT 105
 #define IDM_CIRCLE_LINE 106
+#define IDM_RECT_POLYGON 107
+#define IDM_SQUARE_POLYGON 108
 
 // Ellipse
 #define IDM_ELLIPSE_DIRECT 201
@@ -216,13 +222,15 @@ If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS 
 #define IDM_HERMIT 301
 #define IDM_CARDINAL 302
 
-// Circle Fill
+// Fill
 #define IDM_CIRCLE_QUARTER 401
 #define IDM_CIRCLE_LINE_FILL 402
 #define IDM_POLYGON_CONVEX 403
 #define IDM_POLYGON_GENERAL 404
 #define IDM_FLOODFILL_REC 405
 #define IDM_FLOODFILL_ITR 406
+#define IDM_FILL_SQUARE_HERMIT 407
+#define IDM_FILL_RECT_BEZIER 408
 
 // Circle
 #define IDM_CIRCLE_DIRECT 501
@@ -331,6 +339,19 @@ void UpdateTitle(HWND hwnd)
         break;
     case MODE_LINE_PARAMETRIC:
         hint = "[Line PARAMETRIC]   Click point 1, point 2";
+        break;
+
+    case MODE_FILL_SQUARE_HERMIT:
+        hint = "[Fill Square Hermit] Click top-left, then bottom-right";
+        break;
+    case MODE_FILL_RECT_BEZIER:
+        hint = "[Fill Rect Bezier] Click top-left, then bottom-right";
+        break;
+    case MODE_RECT_POLYGON:
+        hint = "[Rect-Polygon] Click 2 corners, then polygon vertices, Right-click to clip";
+        break;
+    case MODE_SQUARE_POLYGON:
+        hint = "[Sq-Polygon] Click 2 pts for square, then polygon vertices, Right-click to clip";
         break;
 
     default:
@@ -604,6 +625,57 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
         }
 
+        else if (mode == MODE_FILL_SQUARE_HERMIT || mode == MODE_FILL_RECT_BEZIER)
+        {
+            if (clickCount == 2)
+            {
+                int x = min(pts[0].x, pts[1].x);
+                int y = min(pts[0].y, pts[1].y);
+                int w = abs(pts[1].x - pts[0].x);
+                int h = abs(pts[1].y - pts[0].y);
+
+                // Draw the outline so the user can see the shape
+                Rectangle(hdc, x, y, x + w, y + h);
+
+                if (mode == MODE_FILL_SQUARE_HERMIT)
+                {
+                    int side = min(w, h);
+                    curveFillSquare(hdc, Point(x, y), side, drawColor);
+                }
+                else
+                {
+                    curveFillRect(hdc, Point(x, y), w, h, drawColor);
+                }
+                clickCount = 0;
+            }
+        }
+
+        else if (mode == MODE_RECT_POLYGON || mode == MODE_SQUARE_POLYGON)
+        {
+            if (clickCount == 2)
+            {
+                // Draw the clipping window
+                if (mode == MODE_RECT_POLYGON)
+                    Rectangle(hdc, pts[0].x, pts[0].y, pts[1].x, pts[1].y);
+                else
+                {
+                    int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
+                    Rectangle(hdc, pts[0].x, pts[0].y, pts[0].x + side, pts[0].y + side);
+                }
+            }
+            else if (clickCount > 2)
+            {
+                // Accumulate polygon vertices in cardinalPts
+                Point p;
+                p.x = mx;
+                p.y = my;
+                cardinalPts.push_back(p);
+                SetPixel(hdc, mx, my, drawColor);
+                SetPixel(hdc, mx + 1, my, drawColor);
+                SetPixel(hdc, mx, my + 1, drawColor);
+            }
+        }
+
         UpdateTitle(hwnd);
         return 0;
     }
@@ -650,6 +722,41 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             cardinalPts.clear();
             ReleaseDC(hwnd, hdc);
         }
+        if ((mode == MODE_RECT_POLYGON || mode == MODE_SQUARE_POLYGON) && clickCount >= 2 && cardinalPts.size() >= 3)
+        {
+            HDC hdc = GetDC(hwnd);
+
+            int xl, yt, xr, yb;
+            if (mode == MODE_RECT_POLYGON)
+            {
+                xl = min(pts[0].x, pts[1].x);
+                xr = max(pts[0].x, pts[1].x);
+                yt = min(pts[0].y, pts[1].y);
+                yb = max(pts[0].y, pts[1].y);
+            }
+            else
+            {
+                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
+                xl = pts[0].x;
+                xr = pts[0].x + side;
+                yt = pts[0].y;
+                yb = pts[0].y + side;
+            }
+
+            vector<POINT> poly(cardinalPts.size());
+            for (int i = 0; i < (int)cardinalPts.size(); i++)
+            {
+                poly[i].x = cardinalPts[i].x;
+                poly[i].y = cardinalPts[i].y;
+            }
+
+            PolygonClip(hdc, poly.data(), poly.size(), xl, yt, xr, yb);
+
+            cardinalPts.clear();
+            clickCount = 0;
+            ReleaseDC(hwnd, hdc);
+            UpdateTitle(hwnd);
+        }
         return 0;
     }
 
@@ -679,6 +786,12 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             break;
         case IDM_CIRCLE_LINE:
             mode = MODE_CIRCLE_LINE;
+            break;
+        case IDM_RECT_POLYGON:
+            mode = MODE_RECT_POLYGON;
+            break;
+        case IDM_SQUARE_POLYGON:
+            mode = MODE_SQUARE_POLYGON;
             break;
 
         // Ellipse
@@ -717,7 +830,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             mode = MODE_CARDINAL;
             break;
 
-        // Circle Fill
+        // Fill
         case IDM_CIRCLE_QUARTER:
             mode = MODE_CIRCLE_QUARTER;
             break;
@@ -737,6 +850,12 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             break;
         case IDM_FLOODFILL_ITR:
             mode = MODE_FLOODFILL_ITR;
+            break;
+        case IDM_FILL_SQUARE_HERMIT:
+            mode = MODE_FILL_SQUARE_HERMIT;
+            break;
+        case IDM_FILL_RECT_BEZIER:
+            mode = MODE_FILL_RECT_BEZIER;
             break;
 
         // File
@@ -818,6 +937,8 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE, LPSTR, int nsh)
     AppendMenu(hClip, MF_SEPARATOR, 0, NULL);
     AppendMenu(hClip, MF_STRING, IDM_CIRCLE_POINT, "Circle - Point");
     AppendMenu(hClip, MF_STRING, IDM_CIRCLE_LINE, "Circle - Line");
+    AppendMenu(hClip, MF_STRING, IDM_RECT_POLYGON, "Rectangle - Polygon");
+    AppendMenu(hClip, MF_STRING, IDM_SQUARE_POLYGON, "Square - Polygon");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hClip, "Clipping");
 
     // Line submenu
@@ -857,7 +978,9 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE, LPSTR, int nsh)
     AppendMenu(hFill, MF_STRING, IDM_POLYGON_GENERAL, "General Polygon Fill (Non-Convex)");
     AppendMenu(hFill, MF_STRING, IDM_FLOODFILL_REC, "Flood Fill Recursive");
     AppendMenu(hFill, MF_STRING, IDM_FLOODFILL_ITR, "Flood FIll Iterative");
-    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFill, "Circle Fill");
+    AppendMenu(hFill, MF_STRING, IDM_FILL_SQUARE_HERMIT, "Fill Square (Hermit vertical)");
+    AppendMenu(hFill, MF_STRING, IDM_FILL_RECT_BEZIER, "Fill Rectangle (Bezier horizontal)");
+    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFill, "Fill");
 
     // File submenu
     HMENU hUtil = CreatePopupMenu();
