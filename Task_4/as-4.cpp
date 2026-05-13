@@ -632,17 +632,16 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 int y = min(pts[0].y, pts[1].y);
                 int w = abs(pts[1].x - pts[0].x);
                 int h = abs(pts[1].y - pts[0].y);
-
-                // Draw the outline so the user can see the shape
-                Rectangle(hdc, x, y, x + w, y + h);
-
+                
                 if (mode == MODE_FILL_SQUARE_HERMIT)
                 {
                     int side = min(w, h);
+                    Rectangle(hdc, x, y, x + side, y + side); // draw square outline, not rect
                     curveFillSquare(hdc, Point(x, y), side, drawColor);
                 }
                 else
                 {
+                    Rectangle(hdc, x, y, x + w, y + h);
                     curveFillRect(hdc, Point(x, y), w, h, drawColor);
                 }
                 clickCount = 0;
@@ -910,7 +909,6 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             SetClassLongPtr(hwnd, GCLP_HCURSOR, (LONG_PTR)hCursor);
             break;
         }
-
         }
 
         UpdateTitle(hwnd);
