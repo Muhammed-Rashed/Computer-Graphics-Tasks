@@ -1,14 +1,16 @@
 #include <windows.h>
 #include <cmath>
+#include <vector>
 
 using namespace std;
 
 #define IDM_RECT_POINT      1
 #define IDM_RECT_LINE       2
-#define IDM_SQUARE_POINT    3
-#define IDM_SQUARE_LINE     4
-#define IDM_CIRCLE_POINT    5
-#define IDM_CIRCLE_LINE     6
+#define IDM_RECT_POLYGON    3
+#define IDM_SQUARE_POINT    4
+#define IDM_SQUARE_LINE     5
+#define IDM_CIRCLE_POINT    6
+#define IDM_CIRCLE_LINE     7
 
 
 // Clipping Modes
@@ -17,6 +19,7 @@ enum ClipMode
     NONE,
     RECT_POINT,
     RECT_LINE,
+    RECT_POLYGON,
     SQUARE_POINT,
     SQUARE_LINE,
     CIRCLE_POINT,
@@ -28,6 +31,8 @@ enum ClipMode
 ClipMode currentMode = NONE;
 POINT points[4];
 int clickCount = 0;
+POINT polygonPoints[10];
+int polygonCount = 0;
 
 
 //  Point Clipping
@@ -106,6 +111,113 @@ void CohenSutherlandClip(HDC hdc, int xs, int ys, int xe, int ye, int xleft, int
     }
 }
 
+// Polygon Clipping
+struct Vertex
+{
+    double x,y;
+    Vertex(int x1=0,int y1=0)
+    {
+        x=x1;
+        y=y1;
+    }
+};
+typedef vector<Vertex> VertexList;
+typedef bool (*IsInFunc)(Vertex& v,int edge);
+typedef Vertex (*IntersectFunc)(Vertex& v1, Vertex& v2, int edge);
+
+
+VertexList ClipWithEdge(VertexList p, int edge, IsInFunc In, IntersectFunc Intersect)
+{
+    VertexList OutList;
+    if(p.empty()) return VertexList();
+    Vertex v1 = p[p.size()-1];
+    bool v1_in = In(v1,edge);
+    for(int i=0;i<(int)p.size();i++)
+    {
+        Vertex v2 = p[i];
+        bool v2_in = In(v2,edge);
+        if(!v1_in && v2_in)
+        {
+            OutList.push_back(Intersect(v1,v2,edge));
+            OutList.push_back(v2);
+        }
+
+        else if(v1_in && v2_in)
+        {
+            OutList.push_back(v2);
+        }
+
+        else if(v1_in)
+        {
+            OutList.push_back(Intersect(v1,v2,edge));
+        }
+
+        v1 = v2;
+        v1_in = v2_in;
+    }
+    return OutList;
+}
+
+bool InLeft(Vertex& v,int edge)
+{
+    return v.x >= edge;
+}
+
+bool InRight(Vertex& v,int edge)
+{
+    return v.x <= edge;
+}
+
+bool InTop(Vertex& v,int edge)
+{
+    return v.y >= edge;
+}
+
+bool InBottom(Vertex& v,int edge)
+{
+    return v.y <= edge;
+}
+
+Vertex VIntersect(Vertex& v1, Vertex& v2, int xedge)
+{
+    Vertex res;
+    res.x = xedge;
+    res.y = v1.y + (xedge - v1.x) * (v2.y - v1.y) / (v2.x - v1.x);
+    return res;
+}
+
+Vertex HIntersect(Vertex& v1, Vertex& v2, int yedge)
+{
+    Vertex res;
+    res.y = yedge;
+    res.x = v1.x + (yedge - v1.y) * (v2.x - v1.x) / (v2.y - v1.y);
+    return res;
+}
+
+void PolygonClip(HDC hdc, POINT *p, int n, int xleft, int ytop, int xright, int ybottom)
+{
+    VertexList vlist;
+    for(int i=0;i<n;i++)
+    {
+        vlist.push_back(Vertex(p[i].x,p[i].y));
+    }
+
+    vlist = ClipWithEdge(vlist, xleft, InLeft, VIntersect);
+    vlist = ClipWithEdge(vlist, ytop, InTop, HIntersect);
+    vlist = ClipWithEdge(vlist, xright, InRight, VIntersect);
+    vlist = ClipWithEdge(vlist, ybottom, InBottom, HIntersect);
+    if(vlist.empty()) return;
+    Vertex v1 = vlist[vlist.size()-1];
+
+    for(int i=0;i<(int)vlist.size();i++)
+    {
+        Vertex v2 = vlist[i];
+        MoveToEx(hdc, round(v1.x), round(v1.y), NULL);
+        LineTo(hdc, round(v2.x), round(v2.y));
+        v1 = v2;
+    }
+}
+
 
 // Circle Window Clipping
 bool insideCircle(int x, int y, int xc, int yc, int r)
@@ -142,7 +254,6 @@ void circleLineClipping(HDC hdc, int x1, int y1, int x2, int y2, int xc, int yc,
         {
             SetPixel(hdc, round(x), round(y), color);
         }
-
         x += xInc;
         y += yInc;
     }
@@ -187,7 +298,6 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
                 }
             }
 
-            
             // Rectangle Line
             else if(currentMode == RECT_LINE)
             {
@@ -208,19 +318,48 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
                 }
             }
 
+            // Rectangle Polygon Clipping
+            else if(currentMode == RECT_POLYGON)
+            {
+                if(clickCount == 2)
+                {
+                    Rectangle(hdc, points[0].x, points[0].y, points[1].x, points[1].y);
+                }
+
+                else if(clickCount >= 3)
+                {
+                    polygonPoints[polygonCount].x = LOWORD(lp);
+                    polygonPoints[polygonCount].y = HIWORD(lp);
+
+                    polygonCount++;
+
+                    // Polygon has 5 vertices
+                    if(polygonCount == 5)
+                    {
+                        int xleft = min(points[0].x, points[1].x);
+                        int xright = max(points[0].x, points[1].x);
+                        int ytop = min(points[0].y, points[1].y);
+                        int ybottom = max(points[0].y, points[1].y);
+
+                        PolygonClip(hdc, polygonPoints, polygonCount, xleft, ytop, xright, ybottom);
+                        polygonCount = 0;
+                        clickCount = 0;
+                    }
+                }
+            }
+
             
             // Square Point
             else if(currentMode == SQUARE_POINT)
             {
+                int side = min(abs(points[1].x - points[0].x), abs(points[1].y - points[0].y));
                 if(clickCount == 2)
                 {
-                    int side = min(abs(points[1].x - points[0].x), abs(points[1].y - points[0].y));
                     Rectangle(hdc, points[0].x, points[0].y, points[0].x + side, points[0].y + side);
                 }
 
                 else if(clickCount == 3)
                 {
-                    int side = min(abs(points[1].x - points[0].x), abs(points[1].y - points[0].y));
                     PointClipping(hdc, points[2].x, points[2].y, points[0].x, points[0].y, points[0].x + side, points[0].y + side, RGB(255,0,255));
                     clickCount = 0;
                 }
@@ -230,67 +369,50 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
             // Square Line
             else if(currentMode == SQUARE_LINE)
             {
+                int side = min(abs(points[1].x - points[0].x), abs(points[1].y - points[0].y));
                 if(clickCount == 2)
                 {
-                    int side = min(abs(points[1].x - points[0].x), abs(points[1].y - points[0].y));
                     Rectangle(hdc, points[0].x, points[0].y, points[0].x + side, points[0].y + side);
                 }
 
                 else if(clickCount == 4)
                 {
-                    int side = min(abs(points[1].x - points[0].x), abs(points[1].y - points[0].y));
                     CohenSutherlandClip(hdc, points[2].x, points[2].y, points[3].x, points[3].y, points[0].x, points[0].y, points[0].x + side, points[0].y + side, RGB(0,255,0));
                     clickCount = 0;
                 }
             }
 
-            
             // Circle Point
             else if(currentMode == CIRCLE_POINT)
             {
+                int xc = points[0].x;
+                int yc = points[0].y;
+                int r = sqrt(pow(points[1].x - xc,2) + pow(points[1].y - yc,2));
                 if(clickCount == 2)
                 {
-                    int xc = points[0].x;
-                    int yc = points[0].y;
-
-                    int r = sqrt(pow(points[1].x - xc,2) + pow(points[1].y - yc,2));
-
                     Ellipse(hdc, xc - r, yc - r, xc + r, yc + r);
                 }
 
                 else if(clickCount == 3)
                 {
-                    int xc = points[0].x;
-                    int yc = points[0].y;
-
-                    int r = sqrt(pow(points[1].x - xc,2) + pow(points[1].y - yc,2));
-
                     circlePointClipping(hdc, points[2].x, points[2].y, xc, yc, r, RGB(255,128,0));
                     clickCount = 0;
                 }
             }
 
-        
             // Circle Line
             else if(currentMode == CIRCLE_LINE)
             {
+                int xc = points[0].x;
+                int yc = points[0].y;
+                int r = sqrt(pow(points[1].x - xc,2) + pow(points[1].y - yc,2));
                 if(clickCount == 2)
                 {
-                    int xc = points[0].x;
-                    int yc = points[0].y;
-
-                    int r = sqrt(pow(points[1].x - xc,2) + pow(points[1].y - yc,2));
-
                     Ellipse(hdc, xc - r, yc - r, xc + r, yc + r);
                 }
 
                 else if(clickCount == 4)
                 {
-                    int xc = points[0].x;
-                    int yc = points[0].y;
-
-                    int r = sqrt(pow(points[1].x - xc,2) + pow(points[1].y - yc,2));
-
                     circleLineClipping(hdc, points[2].x, points[2].y, points[3].x, points[3].y, xc, yc, r, RGB(0,128,255));
                     clickCount = 0;
                 }
@@ -312,6 +434,12 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
             case IDM_RECT_LINE:
                 currentMode = RECT_LINE;
                 clickCount = 0;
+                break;
+            
+            case IDM_RECT_POLYGON:
+                currentMode = RECT_POLYGON;
+                clickCount = 0;
+                polygonCount = 0;
                 break;
 
             case IDM_SQUARE_POINT:
@@ -337,7 +465,6 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT mcode, WPARAM wp, LPARAM lp)
             return 0;
         }
     }
-
     return DefWindowProc(hwnd, mcode, wp, lp);
 }
 
@@ -366,6 +493,7 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE p, LPSTR c, int nsh)
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hClipMenu, "Clipping Menu");
     AppendMenu(hClipMenu, MF_STRING, IDM_RECT_POINT, "Rectangle Point");
     AppendMenu(hClipMenu, MF_STRING, IDM_RECT_LINE, "Rectangle Line");
+    AppendMenu(hClipMenu, MF_STRING, IDM_RECT_POLYGON, "Rectangle Polygon");
     AppendMenu(hClipMenu, MF_SEPARATOR, 0, NULL);
     AppendMenu(hClipMenu, MF_STRING, IDM_SQUARE_POINT, "Square Point");
     AppendMenu(hClipMenu, MF_STRING, IDM_SQUARE_LINE, "Square Line");
