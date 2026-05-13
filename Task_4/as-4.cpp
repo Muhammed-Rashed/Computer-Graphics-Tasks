@@ -77,7 +77,7 @@ void drawHappy(HDC hdc, int xc, int yc)
     circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 2);
     circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 3);
     circleFillCircle(hdc, xc, yc, 79, RGB(255, 255, 0), 4);
-    circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0));           // Black Border
+    circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
 
     // 2. Draw the Nose (Triangle-ish)
     lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
@@ -98,27 +98,27 @@ void drawHappy(HDC hdc, int xc, int yc)
     circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 2);
     circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 3);
     circleFillCircle(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0), 4);
-    
+
     // 4. THE SMILE (Hermite Curve)
     Point p1, p2, T1, T2;
-    
+
     // Start point of smile (left side)
-    p1.x = xc - 34; 
+    p1.x = xc - 34;
     p1.y = yc + 30;
-    
+
     // End point of smile (right side)
     p2.x = xc + 34;
     p2.y = yc + 30;
-    
-    // Tangent T1: Points DOWN and slightly right 
-    T1.x = 20;   
-    T1.y = 100;  // High Y value creates the downward dip
-    
+
+    // Tangent T1: Points DOWN and slightly right
+    T1.x = 20;
+    T1.y = 100; // High Y value creates the downward dip
+
     // Tangent T2: Points UP and slightly right
     T2.x = 20;
     T2.y = -100; // Negative Y value pulls the curve back up
-    
-    hermit(hdc, p1, T1, p2, T2, RGB(0,0,0));
+
+    hermit(hdc, p1, T1, p2, T2, RGB(0, 0, 0));
 }
 
 // file menu part
@@ -408,6 +408,14 @@ void UpdateTitle(HWND hwnd)
         hint = "[Sq-Polygon] Click 2 pts for square, then polygon vertices, Right-click to clip";
         break;
 
+    case MODE_SMILE:
+        hint = "[Smile :)]";
+        break;
+
+    case MODE_SAD:
+        hint = "[Sad :(]";
+        break;
+
     default:
         hint = "Select a mode from the menus";
         break;
@@ -686,7 +694,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 int y = min(pts[0].y, pts[1].y);
                 int w = abs(pts[1].x - pts[0].x);
                 int h = abs(pts[1].y - pts[0].y);
-                
+
                 if (mode == MODE_FILL_SQUARE_HERMIT)
                 {
                     int side = min(w, h);
@@ -725,6 +733,20 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 SetPixel(hdc, mx, my, drawColor);
                 SetPixel(hdc, mx + 1, my, drawColor);
                 SetPixel(hdc, mx, my + 1, drawColor);
+            }
+        }
+
+        else if (mode == MODE_SMILE || mode == MODE_SAD)
+        {
+            if (clickCount == 1)
+            {
+                if (mode == MODE_SMILE)
+                    drawHappy(hdc, mx, my);
+                else
+                    // add code here Abdelrahman
+                    drawHappy(hdc, mx, my);
+
+                clickCount = 0;
             }
         }
 
@@ -961,6 +983,18 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             crossCursor = !crossCursor;
             HCURSOR hCursor = LoadCursor(NULL, crossCursor ? IDC_CROSS : IDC_ARROW);
             SetClassLongPtr(hwnd, GCLP_HCURSOR, (LONG_PTR)hCursor);
+            break;
+        }
+
+        // Custom
+        case IDM_SMILE:
+        {
+            mode = MODE_SMILE;
+            break;
+        }
+        case IDM_SAD:
+        {
+            mode = MODE_SAD;
             break;
         }
         }
