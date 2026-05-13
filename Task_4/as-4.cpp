@@ -75,6 +75,8 @@ void drawHappy(HDC hdc, int xc, int yc)
     // 1. Draw and Fill the Head
     circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
     // fill with yellow
+    COLORREF cb = GetPixel(hdc, xc, yc);
+    floodfillIterative(hdc, xc, yc, cb, RGB(0, 255, 255));
     
 
     // 2. Draw the Nose (Triangle-ish)
