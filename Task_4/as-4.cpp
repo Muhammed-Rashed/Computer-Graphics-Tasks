@@ -445,7 +445,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                     s.type = MODE_CIRCLE_MIDPOINT;
                     s.color = drawColor;
                     Point rad;
-                    rad.x = r; // store radius in x for simplicity
+                    rad.x = r;
                     rad.y = 0;
                     s.pts.push_back(pts[0]);
                     s.pts.push_back(rad);
@@ -553,7 +553,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             SetPixel(hdc, mx, my, drawColor);
             SetPixel(hdc, mx + 1, my, drawColor);
             SetPixel(hdc, mx, my + 1, drawColor);
-            clickCount = (int)cardinalPts.size(); // keep count in sync
+            clickCount = (int)cardinalPts.size();
         }
 
         else if (mode == MODE_CIRCLE_QUARTER || mode == MODE_CIRCLE_LINE_FILL)
@@ -584,7 +584,6 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             p.y = my;
             cardinalPts.push_back(p);
             SetPixel(hdc, mx, my, drawColor);
-            // Visual feedback for the vertex
             SetPixel(hdc, mx + 1, my, drawColor);
             SetPixel(hdc, mx, my + 1, drawColor);
         }
@@ -897,6 +896,21 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         case IDM_LINE_PARAMETRIC:
             mode = MODE_LINE_PARAMETRIC;
             break;
+
+        // Preferences
+        case IMD_BG_COLOR:
+            clear(hwnd, RGB(255, 255, 255));
+            break;
+
+        case IDM_MOUSE:
+        {
+            static bool crossCursor = true;
+            crossCursor = !crossCursor;
+            HCURSOR hCursor = LoadCursor(NULL, crossCursor ? IDC_CROSS : IDC_ARROW);
+            SetClassLongPtr(hwnd, GCLP_HCURSOR, (LONG_PTR)hCursor);
+            break;
+        }
+
         }
 
         UpdateTitle(hwnd);
