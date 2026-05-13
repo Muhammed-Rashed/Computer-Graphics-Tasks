@@ -87,6 +87,8 @@ If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS 
 // Circle Fill
 #define IDM_CIRCLE_QUARTER 401
 #define IDM_CIRCLE_LINE_FILL 402
+#define IDM_POLYGON_CONVEX 403
+#define IDM_POLYGON_GENERAL 404
 
 // Circle
 #define IDM_CIRCLE_DIRECT 501
@@ -120,7 +122,7 @@ enum AppMode
     MODE_ELLIPSE_MIDPOINT,
 
     // Curves
-    MODE_HERMIT,  // 4 clicks: p1, T1_endpoint, p2, T2_endpoint
+    MODE_HERMIT,   // 4 clicks: p1, T1_endpoint, p2, T2_endpoint
     MODE_CARDINAL, // N clicks, right-click to finish
 
     // Circle Draw
@@ -133,6 +135,8 @@ enum AppMode
     // Circle Fill
     MODE_CIRCLE_QUARTER,   // 3 clicks: center, radius-point, quarter-point
     MODE_CIRCLE_LINE_FILL, // 3 clicks: center, radius-point, quarter-point
+    MODE_POLYGON_CONVEX,
+    MODE_POLYGON_GENERAL
 };
 
 // ---- Global state ----
@@ -414,6 +418,18 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
         }
 
+        else if (mode == MODE_POLYGON_CONVEX || mode == MODE_POLYGON_GENERAL)
+        {
+            Point p;
+            p.x = mx;
+            p.y = my;
+            cardinalPts.push_back(p);
+            SetPixel(hdc, mx, my, drawColor);
+            // Visual feedback for the vertex
+            SetPixel(hdc, mx + 1, my, drawColor);
+            SetPixel(hdc, mx, my + 1, drawColor);
+        }
+
         ReleaseDC(hwnd, hdc);
         UpdateTitle(hwnd);
         return 0;
@@ -430,6 +446,31 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             cardinalPts.clear();
             clickCount = 0;
             UpdateTitle(hwnd);
+        }
+        if ((mode == MODE_POLYGON_CONVEX || mode == MODE_POLYGON_GENERAL) && cardinalPts.size() >= 3)
+        {
+            HDC hdc = GetDC(hwnd);
+            bool convex = isConvex(cardinalPts);
+
+            if (mode == MODE_POLYGON_CONVEX)
+            {
+                if (convex)
+                {
+                    convexFill(hdc, &cardinalPts[0], cardinalPts.size(), drawColor);
+                }
+                else
+                {
+                    MessageBox(hwnd, "Shape is not convex!", "Error", MB_OK | MB_ICONERROR);
+                }
+            }
+            else
+            {
+                convexFill(hdc, &cardinalPts[0], cardinalPts.size(), drawColor);
+            }
+
+            drawPolygon(hdc, cardinalPts, RGB(0, 0, 0)); // Outline
+            cardinalPts.clear();
+            ReleaseDC(hwnd, hdc);
         }
         return 0;
     }
@@ -506,12 +547,20 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             mode = MODE_CIRCLE_LINE_FILL;
             break;
 
+        case IDM_POLYGON_CONVEX:
+            mode = MODE_POLYGON_CONVEX;
+            break;
+
+        case IDM_POLYGON_GENERAL:
+            mode = MODE_POLYGON_GENERAL;
+            break;
+
         // Utility
         case IDM_CLEAR:
             clear(hwnd, BG_COLOR);
             mode = MODE_NONE;
             break;
-            
+
         case IDM_SAVE:
             // TODO Save doesnt actaually save the background color the user uses fix that please
             save(hwnd, BG_COLOR);
@@ -600,6 +649,8 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE, LPSTR, int nsh)
     HMENU hFill = CreatePopupMenu();
     AppendMenu(hFill, MF_STRING, IDM_CIRCLE_QUARTER, "Quarter Fill (pixel)");
     AppendMenu(hFill, MF_STRING, IDM_CIRCLE_LINE_FILL, "Quarter Fill (lines)");
+    AppendMenu(hFill, MF_STRING, IDM_POLYGON_CONVEX, "Convex Polygon Fill");
+    AppendMenu(hFill, MF_STRING, IDM_POLYGON_GENERAL, "General Polygon Fill (Non-Convex)");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFill, "Circle Fill");
 
     // Utility submenu

@@ -14,4 +14,9 @@ void circleFillCircle(HDC hdc, int xc, int yc, int r, int quarter, COLORREF colo
 void lineFillCircle(HDC hdc, int xc, int yc, int r, int quarter, COLORREF color);
 
 int getQuarter(int xc, int yc, int x, int y);
+
+void convexFill(HDC hdc, Point p[], int n, COLORREF c);
+void drawPolygon(HDC hdc, const std::vector<Point>& points, COLORREF color);
+bool isConvex(const std::vector<Point>& points);
+
 #endif
