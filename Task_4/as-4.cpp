@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <ctime>
 
-
 #include "headers/line.h"
 #include "headers/ellipse.h"
 #include "headers/circle.h"
@@ -52,7 +51,16 @@ enum AppMode
     MODE_POLYGON_CONVEX,
     MODE_POLYGON_GENERAL,
     MODE_FLOODFILL_REC,
-    MODE_FLOODFILL_ITR
+    MODE_FLOODFILL_ITR,
+
+    // Line
+    MODE_LINE_DDA,
+    MODE_LINE_MIDPOINT,
+    MODE_LINE_PARAMETRIC,
+
+    // Custom
+    MODE_SMILE,
+    MODE_SAD
 };
 
 // file menu part
@@ -105,7 +113,8 @@ void save()
 void load(HWND hwnd)
 {
     ifstream file("shapes.txt");
-    if (!file.is_open()) return; // Safety check
+    if (!file.is_open())
+        return; // Safety check
 
     shapes.clear();
     clear(hwnd, BG_COLOR); // Wipe the screen before reloading
@@ -120,7 +129,8 @@ void load(HWND hwnd)
         for (int i = 0; i < sz; i++)
         {
             Point p;
-            if (!(file >> p.x >> p.y)) break; 
+            if (!(file >> p.x >> p.y))
+                break;
             s.pts.push_back(p);
         }
 
@@ -131,7 +141,7 @@ void load(HWND hwnd)
         {
             int xc = s.pts[0].x;
             int yc = s.pts[0].y;
-            int r  = s.pts[1].x; 
+            int r = s.pts[1].x;
             circleMidpoint(hdc, xc, yc, r, s.color);
         }
     }
@@ -221,11 +231,24 @@ If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS 
 #define IDM_CIRCLE_MIDPOINT 504
 #define IDM_CIRCLE_MIDPOINT_MODIFIED 505
 
-// Utility
+// Files
 #define IDM_CLEAR 601
 #define IDM_SAVE 602
 #define IDM_LOAD 603
-#define IDM_COLOR 604
+
+// Line
+#define IDM_LINE_DDA 701
+#define IDM_LINE_MIDPOINT 702
+#define IDM_LINE_PARAMETRIC 703
+
+// Preferences
+#define IDM_COLOR 801
+#define IDM_MOUSE 802
+#define IMD_BG_COLOR 803
+
+// Custom shapes
+#define IDM_SMILE 901
+#define IDM_SAD 902
 
 // ---- Global state ----
 AppMode mode = MODE_NONE;
@@ -300,6 +323,16 @@ void UpdateTitle(HWND hwnd)
     case MODE_FLOODFILL_ITR:
         hint = "[Floodfill Itrative]   Click area to fill";
         break;
+    case MODE_LINE_DDA:
+        hint = "[Line DDA]   Click point 1, point 2";
+        break;
+    case MODE_LINE_MIDPOINT:
+        hint = "[Line Midpoint]   Click point 1, point 2";
+        break;
+    case MODE_LINE_PARAMETRIC:
+        hint = "[Line PARAMETRIC]   Click point 1, point 2";
+        break;
+
     default:
         hint = "Select a mode from the menus";
         break;
@@ -553,6 +586,24 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             clickCount = 0;
         }
 
+        else if (mode == MODE_LINE_DDA || mode == MODE_LINE_MIDPOINT || mode == MODE_LINE_PARAMETRIC)
+        {
+            if (clickCount == 2)
+            {
+                int x1 = pts[0].x, y1 = pts[0].y;
+                int x2 = pts[1].x, y2 = pts[1].y;
+
+                if (mode == MODE_LINE_DDA)
+                    lineDDA(hdc, x1, y1, x2, y2, drawColor);
+                else if (mode == MODE_LINE_MIDPOINT)
+                    lineMidPoint(hdc, x1, y1, x2, y2, drawColor);
+                else
+                    lineParametric(hdc, x1, y1, x2, y2, drawColor);
+
+                clickCount = 0;
+            }
+        }
+
         UpdateTitle(hwnd);
         return 0;
     }
@@ -688,7 +739,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             mode = MODE_FLOODFILL_ITR;
             break;
 
-        // Utility
+        // File
         case IDM_CLEAR:
             clear(hwnd, BG_COLOR);
             mode = MODE_NONE;
@@ -704,6 +755,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             break;
 
         case IDM_COLOR:
+        {
             static COLORREF customColors[16] = {};
             CHOOSECOLOR cc = {};
             cc.lStructSize = sizeof(cc);
@@ -713,6 +765,18 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             cc.Flags = CC_FULLOPEN | CC_RGBINIT;
             if (ChooseColor(&cc))
                 drawColor = cc.rgbResult;
+            break;
+        }
+
+        // Line
+        case IDM_LINE_DDA:
+            mode = MODE_LINE_DDA;
+            break;
+        case IDM_LINE_MIDPOINT:
+            mode = MODE_LINE_MIDPOINT;
+            break;
+        case IDM_LINE_PARAMETRIC:
+            mode = MODE_LINE_PARAMETRIC;
             break;
         }
 
@@ -756,6 +820,13 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE, LPSTR, int nsh)
     AppendMenu(hClip, MF_STRING, IDM_CIRCLE_LINE, "Circle - Line");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hClip, "Clipping");
 
+    // Line submenu
+    HMENU hLine = CreatePopupMenu();
+    AppendMenu(hLine, MF_STRING, IDM_LINE_DDA, "Line DDA");
+    AppendMenu(hLine, MF_STRING, IDM_LINE_MIDPOINT, "Line Midpoint");
+    AppendMenu(hLine, MF_STRING, IDM_LINE_PARAMETRIC, "Line Parametric");
+    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hLine, "Line");
+
     // Ellipse submenu
     HMENU hEllipse = CreatePopupMenu();
     AppendMenu(hEllipse, MF_STRING, IDM_ELLIPSE_DIRECT, "Direct");
@@ -788,13 +859,25 @@ int APIENTRY WinMain(HINSTANCE h, HINSTANCE, LPSTR, int nsh)
     AppendMenu(hFill, MF_STRING, IDM_FLOODFILL_ITR, "Flood FIll Iterative");
     AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hFill, "Circle Fill");
 
-    // Utility submenu
+    // File submenu
     HMENU hUtil = CreatePopupMenu();
     AppendMenu(hUtil, MF_STRING, IDM_CLEAR, "Clear");
     AppendMenu(hUtil, MF_STRING, IDM_SAVE, "Save to file");
     AppendMenu(hUtil, MF_STRING, IDM_LOAD, "Load from file");
-    AppendMenu(hUtil, MF_STRING, IDM_COLOR, "Pick Color");
-    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hUtil, "Utility");
+    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hUtil, "File");
+
+    // Preferences menu
+    HMENU hPref = CreatePopupMenu();
+    AppendMenu(hPref, MF_STRING, IMD_BG_COLOR, "back to white background");
+    AppendMenu(hPref, MF_STRING, IDM_MOUSE, "Change cursor");
+    AppendMenu(hPref, MF_STRING, IDM_COLOR, "Pick Color");
+    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hPref, "Preferences");
+
+    // Custom
+    HMENU hCustom = CreatePopupMenu();
+    AppendMenu(hCustom, MF_STRING, IDM_SMILE, "Smile");
+    AppendMenu(hCustom, MF_STRING, IDM_SAD, "Sad");
+    AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hCustom, "Custom");
 
     SetMenu(hwnd, hMenu);
 
