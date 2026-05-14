@@ -250,10 +250,11 @@ void load(HWND hwnd)
         // Immediate Drawing
         if (s.type == MODE_CIRCLE_MIDPOINT && s.pts.size() >= 2)
         {
-            int xc = s.pts[0].x;
-            int yc = s.pts[0].y;
-            int r = s.pts[1].x;
-            circleMidpoint(hdc, xc, yc, r, s.color);
+            circleMidpoint(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.color);
+        }
+        else if (s.type == MODE_HERMIT && s.pts.size() >= 4)
+        {
+            hermit(hdc, s.pts[0], s.pts[1], s.pts[2], s.pts[3], s.color);
         }
     }
 
