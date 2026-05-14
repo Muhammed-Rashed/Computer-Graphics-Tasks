@@ -184,6 +184,7 @@ struct Shape
 };
 
 vector<Shape> shapes;
+
 // clear
 void clear(HWND hwnd, COLORREF bgColor)
 {
@@ -221,40 +222,91 @@ void save()
 }
 
 // load
+// load
 void load(HWND hwnd)
 {
     ifstream file("shapes.txt");
     if (!file.is_open())
-        return; // Safety check
+        return; 
 
     shapes.clear();
-    clear(hwnd, BG_COLOR); // Wipe the screen before reloading
+    clear(hwnd, BG_COLOR); 
 
     HDC hdc = GetDC(hwnd);
     Shape s;
     int sz;
-    // This is the robust way to check for end-of-file while reading
+    
     while (file >> s.type >> s.color >> sz)
     {
-        s.pts.clear(); // Clear previous points from the shape object
+        s.pts.clear(); 
         for (int i = 0; i < sz; i++)
         {
             Point p;
-            if (!(file >> p.x >> p.y))
-                break;
+            if (!(file >> p.x >> p.y)) break;
             s.pts.push_back(p);
         }
 
         shapes.push_back(s);
 
-        // Immediate Drawing
-        if (s.type == MODE_CIRCLE_MIDPOINT && s.pts.size() >= 2)
-        {
+        // --- Drawing Logic for Loaded Shapes ---
+        
+        // 1. Circles
+        if (s.type == MODE_CIRCLE_DIRECT && s.pts.size() >= 2)
+            circleDirect(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.color);
+        else if (s.type == MODE_CIRCLE_POLAR && s.pts.size() >= 2)
+            circlePolar(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.color);
+        else if (s.type == MODE_CIRCLE_POLAR_ITERATIVE && s.pts.size() >= 2)
+            circleIterativePolar(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.color);
+        else if (s.type == MODE_CIRCLE_MIDPOINT && s.pts.size() >= 2)
             circleMidpoint(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.color);
+        else if (s.type == MODE_CIRCLE_MIDPOINT_MODIFIED && s.pts.size() >= 2)
+            circleModifiedMidPoint(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.color);
+
+        // 2. Lines
+        else if (s.type == MODE_LINE_DDA && s.pts.size() >= 2)
+            lineDDA(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.pts[1].y, s.color);
+        else if (s.type == MODE_LINE_MIDPOINT && s.pts.size() >= 2)
+            lineMidPoint(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.pts[1].y, s.color);
+        else if (s.type == MODE_LINE_PARAMETRIC && s.pts.size() >= 2)
+            lineParametric(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.pts[1].y, s.color);
+
+        // 3. Ellipses
+        else if (s.pts.size() >= 3 && (s.type == MODE_ELLIPSE_DIRECT || s.type == MODE_ELLIPSE_POLAR || s.type == MODE_ELLIPSE_MIDPOINT))
+        {
+            int rx = abs(s.pts[1].x - s.pts[0].x);
+            int ry = abs(s.pts[2].y - s.pts[0].y);
+            if (s.type == MODE_ELLIPSE_DIRECT) directEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
+            else if (s.type == MODE_ELLIPSE_POLAR) polarEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
+            else midpointEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
         }
+
+        // 4. Curves
         else if (s.type == MODE_HERMIT && s.pts.size() >= 4)
         {
-            hermit(hdc, s.pts[0], s.pts[1], s.pts[2], s.pts[3], s.color);
+            Point p1{s.pts[0].x, s.pts[0].y};
+            // Tangent vectors = difference from previous point, scaled
+            Point T1{(s.pts[1].x - s.pts[0].x) * 3, (s.pts[1].y - s.pts[0].y) * 3};
+            Point p2{s.pts[2].x, s.pts[2].y};
+            Point T2{(s.pts[3].x - s.pts[2].x) * 3, (s.pts[3].y - s.pts[2].y) * 3};
+            hermit(hdc, p1, T1, p2, T2, s.color);
+        }
+        else if (s.type == MODE_CARDINAL && s.pts.size() >= 2)
+            cardinalSplineCurve(hdc, s.pts, 0.5, s.color);
+
+        // 5. Custom Shapes (Faces)
+        else if (s.type == MODE_SMILE && s.pts.size() >= 1)
+            drawHappy(hdc, s.pts[0].x, s.pts[0].y);
+        else if (s.type == MODE_SAD && s.pts.size() >= 1)
+            drawSad(hdc, s.pts[0].x, s.pts[0].y);
+            
+        // 6. Fills (Using Point-Radius-Quarter logic)
+        else if (s.pts.size() >= 3 && (s.type == MODE_CIRCLE_QUARTER || s.type == MODE_CIRCLE_LINE_FILL))
+        {
+            int r = (int)sqrt(pow(s.pts[1].x - s.pts[0].x, 2) + pow(s.pts[1].y - s.pts[0].y, 2));
+            circleMidpoint(hdc, s.pts[0].x, s.pts[0].y, r, RGB(0, 0, 0)); // Draw the circle border for reference
+            int q = getQuarter(s.pts[0].x, s.pts[0].y, s.pts[2].x, s.pts[2].y);
+            if (s.type == MODE_CIRCLE_QUARTER) circleFillCircle(hdc, s.pts[0].x, s.pts[0].y, r, q, s.color);
+            else lineFillCircle(hdc, s.pts[0].x, s.pts[0].y, r, q, s.color);
         }
     }
 
@@ -546,8 +598,18 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         {
             if (clickCount == 2)
             {
+                Shape s;
+                s.type = mode;
+                s.color = drawColor;
+                Point rad;
+
                 int xc = pts[0].x, yc = pts[0].y;
                 int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
+                rad.x = r;
+                rad.y = 0;
+                s.pts.push_back(pts[0]);
+                s.pts.push_back(rad);
+                shapes.push_back(s);
                 if (mode == MODE_CIRCLE_DIRECT)
                     circleDirect(hdc, xc, yc, r, drawColor);
                 else if (mode == MODE_CIRCLE_POLAR)
@@ -557,15 +619,6 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 else if (mode == MODE_CIRCLE_MIDPOINT)
                 {
                     circleMidpoint(hdc, xc, yc, r, drawColor);
-                    Shape s;
-                    s.type = MODE_CIRCLE_MIDPOINT;
-                    s.color = drawColor;
-                    Point rad;
-                    rad.x = r;
-                    rad.y = 0;
-                    s.pts.push_back(pts[0]);
-                    s.pts.push_back(rad);
-                    shapes.push_back(s);
                 }
                 else
                     circleModifiedMidPoint(hdc, xc, yc, r, drawColor);
@@ -634,6 +687,13 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 COLORREF col = (mode == MODE_ELLIPSE_DIRECT)  ? drawColor
                                : (mode == MODE_ELLIPSE_POLAR) ? drawColor
                                                               : drawColor;
+                Shape s;
+                s.type = mode; 
+                s.color = col;
+                s.pts.push_back(pts[0]); // Center
+                s.pts.push_back(pts[1]); // Point for Rx
+                s.pts.push_back(pts[2]); // Point for Ry
+                shapes.push_back(s);
                 if (mode == MODE_ELLIPSE_DIRECT)
                     directEllipse(hdc, rx, ry, xc, yc, col);
                 else if (mode == MODE_ELLIPSE_POLAR)
@@ -650,6 +710,14 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             SetPixel(hdc, mx, my, drawColor);
             if (clickCount == 4)
             {
+                Shape s;
+                s.type = MODE_HERMIT;
+                s.color = drawColor;
+                s.pts.push_back(pts[0]); // P1
+                s.pts.push_back(pts[1]); // T1 vector end-point
+                s.pts.push_back(pts[2]); // P2
+                s.pts.push_back(pts[3]); // T2 vector end-point
+                shapes.push_back(s);
                 Point p1{pts[0].x, pts[0].y};
                 // Tangent vectors = difference from previous point, scaled
                 Point T1{(pts[1].x - pts[0].x) * 3, (pts[1].y - pts[0].y) * 3};
@@ -665,7 +733,15 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             Point p;
             p.x = mx;
             p.y = my;
+            
             cardinalPts.push_back(p);
+
+            Shape s;
+            s.type = MODE_CARDINAL;
+            s.color = drawColor;
+            s.pts = cardinalPts; // Copy the whole vector of points
+            shapes.push_back(s);
+
             SetPixel(hdc, mx, my, drawColor);
             SetPixel(hdc, mx + 1, my, drawColor);
             SetPixel(hdc, mx, my + 1, drawColor);
@@ -674,6 +750,12 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         else if (mode == MODE_CIRCLE_QUARTER || mode == MODE_CIRCLE_LINE_FILL)
         {
+            Shape s;
+            s.type = mode;
+            s.color = drawColor;
+            s.pts.push_back(pts[0]); // Center
+            s.pts.push_back(pts[1]); // Point for Radius
+        
             if (clickCount == 2)
             {
                 int xc = pts[0].x, yc = pts[0].y;
@@ -682,6 +764,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
             else if (clickCount == 3)
             {
+                s.pts.push_back(pts[2]); // Point to determine Quarter
                 int xc = pts[0].x, yc = pts[0].y;
                 int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 int q = getQuarter(xc, yc, mx, my);
@@ -691,6 +774,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                     lineFillCircle(hdc, xc, yc, r, q, drawColor);
                 clickCount = 0;
             }
+            shapes.push_back(s);
         }
 
         else if (mode == MODE_POLYGON_CONVEX || mode == MODE_POLYGON_GENERAL)
@@ -728,7 +812,12 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             {
                 int x1 = pts[0].x, y1 = pts[0].y;
                 int x2 = pts[1].x, y2 = pts[1].y;
-
+                Shape s;
+                s.type = mode; // MODE_LINE_DDA, etc.
+                s.color = drawColor;
+                s.pts.push_back(pts[0]); // Start point
+                s.pts.push_back(pts[1]); // End point
+                shapes.push_back(s);
                 if (mode == MODE_LINE_DDA)
                     lineDDA(hdc, x1, y1, x2, y2, drawColor);
                 else if (mode == MODE_LINE_MIDPOINT)
@@ -792,8 +881,14 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         else if (mode == MODE_SMILE || mode == MODE_SAD)
         {
+            Shape s;
+            s.type = mode;
+            s.color = drawColor; 
+            
             if (clickCount == 1)
             {
+                s.pts.push_back(pts[0]); // Only need the center point
+                shapes.push_back(s);
                 if (mode == MODE_SMILE)
                     drawHappy(hdc, mx, my);
                 else
