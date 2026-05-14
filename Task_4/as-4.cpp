@@ -74,58 +74,9 @@ void drawHappy(HDC hdc, int xc, int yc)
 {
     // 1. Draw and Fill the Head
     circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
-
-    // 2. Draw the Nose (Triangle-ish)
-    lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
-    lineMidPoint(hdc, xc, yc, xc + 5, yc + 15, RGB(0, 0, 0));
-
-    // 3. Draw the Eyes
-    // Outer circles (white of the eyes or just borders)
-    circleMidpoint(hdc, xc - 30, yc - 20, 15, RGB(0, 0, 0));
-    circleMidpoint(hdc, xc + 30, yc - 20, 15, RGB(0, 0, 0));
-
-    // Inner Pupils (Filled black)
-    circleMidpoint(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0));
-    // fill with black
-    COLORREF cb = GetPixel(hdc, xc - 30, yc - 20);
-    floodfillIterative(hdc, xc - 30, yc - 20, cb, RGB(0, 0, 0));
-
-    circleMidpoint(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0));
-    // fill with black
-    cb = GetPixel(hdc, xc + 30, yc - 20); 
-    floodfillIterative(hdc, xc + 30, yc - 20, cb, RGB(0, 0, 0));
-
-    // 4. THE SMILE (Hermite Curve)
-    Point p1, p2, T1, T2;
-
-    // Start point of smile (left side)
-    p1.x = xc - 34;
-    p1.y = yc + 30;
-    // End point of smile (right side)
-    p2.x = xc + 34;
-    p2.y = yc + 30;
-
-    // Tangent T1: Points DOWN and slightly right
-    T1.x = 20;
-    T1.y = 100; // High Y value creates the downward dip
-
-    // Tangent T2: Points UP and slightly right
-    T2.x = 20;
-    T2.y = -100; // Negative Y value pulls the curve back up
-
-    hermit(hdc, p1, T1, p2, T2, RGB(0, 0, 0));
-    lineMidPoint(hdc, p1.x, p1.y, p2.x, p2.y, RGB(0, 0, 0)); // make line
-}
-
-// sad face
-void drawSad(HDC hdc, int xc, int yc)
-{
-    // 1. Draw and Fill the Head
-    circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
     // fill with yellow
     COLORREF cb = GetPixel(hdc, xc, yc);
     floodfillIterative(hdc, xc, yc, cb, RGB(255, 255, 0));
-    
 
     // 2. Draw the Nose (Triangle-ish)
     lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
@@ -144,30 +95,81 @@ void drawSad(HDC hdc, int xc, int yc)
 
     circleMidpoint(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0));
     // fill with black
-    cb = GetPixel(hdc, xc + 30, yc - 20); 
+    cb = GetPixel(hdc, xc + 30, yc - 20);
+    floodfillIterative(hdc, xc + 30, yc - 20, cb, RGB(0, 0, 0));
+
+    // 4. THE SMILE (Hermite Curve)
+    Point p1, p2, T1, T2;
+
+    // Start point of smile (left side)
+    p1.x = xc - 34;
+    p1.y = yc + 30;
+
+    // End point of smile (right side)
+    p2.x = xc + 34;
+    p2.y = yc + 30;
+
+    // Tangent T1: Points DOWN and slightly right
+    T1.x = 20;
+    T1.y = 100; // High Y value creates the downward dip
+
+    // Tangent T2: Points UP and slightly right
+    T2.x = 20;
+    T2.y = -100; // Negative Y value pulls the curve back up
+
+    hermit(hdc, p1, T1, p2, T2, RGB(0, 0, 0));
+}
+
+// sad face
+void drawSad(HDC hdc, int xc, int yc)
+{
+    // 1. Draw and Fill the Head
+    circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
+    // fill with yellow
+    COLORREF cb = GetPixel(hdc, xc, yc);
+    floodfillIterative(hdc, xc, yc, cb, RGB(255, 255, 0));
+
+    // 2. Draw the Nose (Triangle-ish)
+    lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
+    lineMidPoint(hdc, xc, yc, xc + 5, yc + 15, RGB(0, 0, 0));
+
+    // 3. Draw the Eyes
+    // Outer circles (white of the eyes or just borders)
+    circleMidpoint(hdc, xc - 30, yc - 20, 15, RGB(0, 0, 0));
+    circleMidpoint(hdc, xc + 30, yc - 20, 15, RGB(0, 0, 0));
+
+    // Inner Pupils (Filled black)
+    circleMidpoint(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0));
+    // fill with black
+    cb = GetPixel(hdc, xc - 30, yc - 20);
+    floodfillIterative(hdc, xc - 30, yc - 20, cb, RGB(0, 0, 0));
+
+    circleMidpoint(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0));
+    // fill with black
+    cb = GetPixel(hdc, xc + 30, yc - 20);
     floodfillIterative(hdc, xc + 30, yc - 20, cb, RGB(0, 0, 0));
 
     // 4. THE FROWN (Inverted Hermite Curve)
     Point p1, p2, T1, T2;
-    
+
     // Position the frown slightly lower than the smile
-    p1.x = xc - 30; 
-    p1.y = yc + 45; 
-    
+    p1.x = xc - 30;
+    p1.y = yc + 45;
+
     p2.x = xc + 30;
     p2.y = yc + 45;
-    
+
     // Inverting the tangents:
     // T1.y is now negative (points UP first)
-    T1.x = 20;   
-    T1.y = -70; 
-    
+    T1.x = 20;
+    T1.y = -70;
+
     // T2.y is now positive (comes from UP to DOWN)
     T2.x = 20;
-    T2.y = 70; 
-    
+    T2.y = 70;
+
     // Draw the frown in black
-    hermit(hdc, p1, T1, p2, T2, RGB(0,0,0)); 
+    hermit(hdc, p1, T1, p2, T2, RGB(0, 0, 0));
 }
 
 // file menu part
@@ -219,34 +221,32 @@ void save()
 }
 
 // load
-// load
 void load(HWND hwnd)
 {
     ifstream file("shapes.txt");
     if (!file.is_open())
-        return; 
+        return;
 
     shapes.clear();
-    clear(hwnd, BG_COLOR); 
+    clear(hwnd, BG_COLOR);
 
     HDC hdc = GetDC(hwnd);
     Shape s;
     int sz;
-    
+
     while (file >> s.type >> s.color >> sz)
     {
-        s.pts.clear(); 
+        s.pts.clear();
         for (int i = 0; i < sz; i++)
         {
             Point p;
-            if (!(file >> p.x >> p.y)) break;
+            if (!(file >> p.x >> p.y))
+                break;
             s.pts.push_back(p);
         }
 
         shapes.push_back(s);
 
-        // --- Drawing Logic for Loaded Shapes ---
-        
         // 1. Circles
         if (s.type == MODE_CIRCLE_DIRECT && s.pts.size() >= 2)
             circleDirect(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.color);
@@ -268,20 +268,24 @@ void load(HWND hwnd)
             lineParametric(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.pts[1].y, s.color);
 
         // 3. Ellipses
-        else if (s.pts.size() >= 3 && (s.type == MODE_ELLIPSE_DIRECT || s.type == MODE_ELLIPSE_POLAR || s.type == MODE_ELLIPSE_MIDPOINT))
+        else if (s.pts.size() >= 3 && (s.type == MODE_ELLIPSE_DIRECT ||
+                                       s.type == MODE_ELLIPSE_POLAR ||
+                                       s.type == MODE_ELLIPSE_MIDPOINT))
         {
             int rx = abs(s.pts[1].x - s.pts[0].x);
             int ry = abs(s.pts[2].y - s.pts[0].y);
-            if (s.type == MODE_ELLIPSE_DIRECT) directEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
-            else if (s.type == MODE_ELLIPSE_POLAR) polarEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
-            else midpointEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
+            if (s.type == MODE_ELLIPSE_DIRECT)
+                directEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
+            else if (s.type == MODE_ELLIPSE_POLAR)
+                polarEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
+            else
+                midpointEllipse(hdc, rx, ry, s.pts[0].x, s.pts[0].y, s.color);
         }
 
         // 4. Curves
         else if (s.type == MODE_HERMIT && s.pts.size() >= 4)
         {
             Point p1{s.pts[0].x, s.pts[0].y};
-            // Tangent vectors = difference from previous point, scaled
             Point T1{(s.pts[1].x - s.pts[0].x) * 3, (s.pts[1].y - s.pts[0].y) * 3};
             Point p2{s.pts[2].x, s.pts[2].y};
             Point T2{(s.pts[3].x - s.pts[2].x) * 3, (s.pts[3].y - s.pts[2].y) * 3};
@@ -295,69 +299,163 @@ void load(HWND hwnd)
             drawHappy(hdc, s.pts[0].x, s.pts[0].y);
         else if (s.type == MODE_SAD && s.pts.size() >= 1)
             drawSad(hdc, s.pts[0].x, s.pts[0].y);
-            
-        // 6. Fills (Using Point-Radius-Quarter logic)
-        else if (s.pts.size() >= 3 && (s.type == MODE_CIRCLE_QUARTER || s.type == MODE_CIRCLE_LINE_FILL))
+
+        // 6. Circle Quarter / Line Fill
+        else if (s.pts.size() >= 3 && (s.type == MODE_CIRCLE_QUARTER ||
+                                       s.type == MODE_CIRCLE_LINE_FILL))
         {
-            int r = (int)sqrt(pow(s.pts[1].x - s.pts[0].x, 2) + pow(s.pts[1].y - s.pts[0].y, 2));
-            circleMidpoint(hdc, s.pts[0].x, s.pts[0].y, r, RGB(0, 0, 0)); // Draw the circle border for reference
+            int r = (int)sqrt(pow(s.pts[1].x - s.pts[0].x, 2) +
+                              pow(s.pts[1].y - s.pts[0].y, 2));
+            circleMidpoint(hdc, s.pts[0].x, s.pts[0].y, r, RGB(0, 0, 0));
             int q = getQuarter(s.pts[0].x, s.pts[0].y, s.pts[2].x, s.pts[2].y);
-            if (s.type == MODE_CIRCLE_QUARTER) circleFillCircle(hdc, s.pts[0].x, s.pts[0].y, r, q, s.color);
-            else lineFillCircle(hdc, s.pts[0].x, s.pts[0].y, r, q, s.color);
+            if (s.type == MODE_CIRCLE_QUARTER)
+                circleFillCircle(hdc, s.pts[0].x, s.pts[0].y, r, q, s.color);
+            else
+                lineFillCircle(hdc, s.pts[0].x, s.pts[0].y, r, q, s.color);
         }
+
+        // 7. Polygon fills
+        else if (s.type == MODE_POLYGON_CONVEX && s.pts.size() >= 3)
+        {
+            if (isConvex(s.pts))
+            {
+                drawPolygon(hdc, s.pts, s.color);
+                convexFill(hdc, &s.pts[0], s.pts.size(), s.color);
+            }
+            else
+            {
+                MessageBox(hwnd, "Loaded shape is not convex!", "Error", MB_OK | MB_ICONERROR);
+            }
+        }
+        else if (s.type == MODE_POLYGON_GENERAL && s.pts.size() >= 3)
+        {
+            drawPolygon(hdc, s.pts, s.color);
+            nonConvFill(hdc, &s.pts[0], s.pts.size(), s.color);
+        }
+
+        // 8. Clipping: Rectangle - Point
+        else if (s.type == MODE_RECT_POINT && s.pts.size() >= 3)
+        {
+            int xl = min(s.pts[0].x, s.pts[1].x), xr = max(s.pts[0].x, s.pts[1].x);
+            int yt = min(s.pts[0].y, s.pts[1].y), yb = max(s.pts[0].y, s.pts[1].y);
+            Rectangle(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.pts[1].y);
+            PointClipping(hdc, s.pts[2].x, s.pts[2].y, xl, yt, xr, yb, s.color);
+        }
+
+        // 9. Clipping: Rectangle - Line
+        else if (s.type == MODE_RECT_LINE && s.pts.size() >= 4)
+        {
+            int xl = min(s.pts[0].x, s.pts[1].x), xr = max(s.pts[0].x, s.pts[1].x);
+            int yt = min(s.pts[0].y, s.pts[1].y), yb = max(s.pts[0].y, s.pts[1].y);
+            Rectangle(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.pts[1].y);
+            CohenSutherlandClip(hdc,
+                                s.pts[2].x, s.pts[2].y, s.pts[3].x, s.pts[3].y,
+                                xl, yt, xr, yb, s.color);
+        }
+
+        // 10. Clipping: Square - Point
+        else if (s.type == MODE_SQUARE_POINT && s.pts.size() >= 3)
+        {
+            int side = min(abs(s.pts[1].x - s.pts[0].x), abs(s.pts[1].y - s.pts[0].y));
+            Rectangle(hdc, s.pts[0].x, s.pts[0].y,
+                      s.pts[0].x + side, s.pts[0].y + side);
+            PointClipping(hdc, s.pts[2].x, s.pts[2].y,
+                          s.pts[0].x, s.pts[0].y,
+                          s.pts[0].x + side, s.pts[0].y + side, s.color);
+        }
+
+        // 11. Clipping: Square - Line
+        else if (s.type == MODE_SQUARE_LINE && s.pts.size() >= 4)
+        {
+            int side = min(abs(s.pts[1].x - s.pts[0].x), abs(s.pts[1].y - s.pts[0].y));
+            Rectangle(hdc, s.pts[0].x, s.pts[0].y,
+                      s.pts[0].x + side, s.pts[0].y + side);
+            CohenSutherlandClip(hdc,
+                                s.pts[2].x, s.pts[2].y, s.pts[3].x, s.pts[3].y,
+                                s.pts[0].x, s.pts[0].y,
+                                s.pts[0].x + side, s.pts[0].y + side, s.color);
+        }
+
+        // 12. Clipping: Circle - Point
+        else if (s.type == MODE_CIRCLE_POINT && s.pts.size() >= 3)
+        {
+            int xc = s.pts[0].x, yc = s.pts[0].y;
+            int r = (int)sqrt(pow(s.pts[1].x - xc, 2) + pow(s.pts[1].y - yc, 2));
+            Ellipse(hdc, xc - r, yc - r, xc + r, yc + r);
+            circlePointClipping(hdc, s.pts[2].x, s.pts[2].y, xc, yc, r, s.color);
+        }
+
+        // 13. Clipping: Circle - Line
+        else if (s.type == MODE_CIRCLE_LINE && s.pts.size() >= 4)
+        {
+            int xc = s.pts[0].x, yc = s.pts[0].y;
+            int r = (int)sqrt(pow(s.pts[1].x - xc, 2) + pow(s.pts[1].y - yc, 2));
+            Ellipse(hdc, xc - r, yc - r, xc + r, yc + r);
+            circleLineClipping(hdc,
+                               s.pts[2].x, s.pts[2].y, s.pts[3].x, s.pts[3].y,
+                               xc, yc, r, s.color);
+        }
+
+        // 14. Clipping: Rectangle - Polygon
+        else if (s.type == MODE_RECT_POLYGON && s.pts.size() >= 5)
+        {
+            // pts[0], pts[1] = rect corners; pts[2..] = polygon vertices
+            int xl = min(s.pts[0].x, s.pts[1].x), xr = max(s.pts[0].x, s.pts[1].x);
+            int yt = min(s.pts[0].y, s.pts[1].y), yb = max(s.pts[0].y, s.pts[1].y);
+            Rectangle(hdc, s.pts[0].x, s.pts[0].y, s.pts[1].x, s.pts[1].y);
+            vector<POINT> poly(s.pts.size() - 2);
+            for (int i = 0; i < (int)poly.size(); i++)
+            {
+                poly[i].x = s.pts[i + 2].x;
+                poly[i].y = s.pts[i + 2].y;
+            }
+            PolygonClip(hdc, poly.data(), poly.size(), xl, yt, xr, yb);
+        }
+
+        // 15. Clipping: Square - Polygon
+        else if (s.type == MODE_SQUARE_POLYGON && s.pts.size() >= 5)
+        {
+            int side = min(abs(s.pts[1].x - s.pts[0].x), abs(s.pts[1].y - s.pts[0].y));
+            int xl = s.pts[0].x, xr = s.pts[0].x + side;
+            int yt = s.pts[0].y, yb = s.pts[0].y + side;
+            Rectangle(hdc, xl, yt, xr, yb);
+            vector<POINT> poly(s.pts.size() - 2);
+            for (int i = 0; i < (int)poly.size(); i++)
+            {
+                poly[i].x = s.pts[i + 2].x;
+                poly[i].y = s.pts[i + 2].y;
+            }
+            PolygonClip(hdc, poly.data(), poly.size(), xl, yt, xr, yb);
+        }
+
+        // 16. Curve Fills
+        else if (s.type == MODE_FILL_SQUARE_HERMIT && s.pts.size() >= 2)
+        {
+            int x = min(s.pts[0].x, s.pts[1].x);
+            int y = min(s.pts[0].y, s.pts[1].y);
+            int w = abs(s.pts[1].x - s.pts[0].x);
+            int h = abs(s.pts[1].y - s.pts[0].y);
+            int side = min(w, h);
+            Rectangle(hdc, x, y, x + side, y + side);
+            curveFillSquare(hdc, Point(x, y), side, s.color);
+        }
+        else if (s.type == MODE_FILL_RECT_BEZIER && s.pts.size() >= 2)
+        {
+            int x = min(s.pts[0].x, s.pts[1].x);
+            int y = min(s.pts[0].y, s.pts[1].y);
+            int w = abs(s.pts[1].x - s.pts[0].x);
+            int h = abs(s.pts[1].y - s.pts[0].y);
+            Rectangle(hdc, x, y, x + w, y + h);
+            curveFillRect(hdc, Point(x, y), w, h, s.color);
+        }
+
+        // 17. Flood fills — skip silently (pixel state cannot be restored from pts alone)
+        // MODE_FLOODFILL_REC / MODE_FLOODFILL_ITR are intentionally not redrawn.
     }
 
     ReleaseDC(hwnd, hdc);
     file.close();
 }
-
-/*
-HOW TO ADD NEW FEATURES
-========================
-
-1. Add a menu ID at the top:
-#define IDM_SOMETHING 701
-Use a unique number. Current ranges:
-    Clipping=1xx, Ellipse=2xx, Curves=3xx,
-    Circle Fill=4xx, Circle=5xx, Utility=6xx
-
-2. If it needs mouse clicks on the canvas (drawing) then add a mode to the enum:
-MODE_SOMETHING,
-If it runs immediately on menu click (e.g. Clear, Save, change color) SKIP THIS STEP.
-
-3. (Drawing modes only) Add input handling in WM_LBUTTONDOWN:
-    else if (mode == MODE_SOMETHING)
-    {
-        if (clickCount == 2)   // adjust click count as needed
-        {
-            // draw using pts[0], pts[1], etc.
-            clickCount = 0;
-        }
-    }
-
-4. (Drawing modes only) Add a hint in UpdateTitle():
-    case MODE_SOMETHING:
-        hint = "[Something] Click X, then Y";
-        break;
-
-5. Add a case in WM_COMMAND:
-    - Drawing mode:
-        case IDM_SOMETHING:
-            mode = MODE_SOMETHING;
-            break;
-    - Immediate action (utility):
-        case IDM_SOMETHING:
-            doSomething(hwnd);
-            break;
-
-6. Add to a submenu in WinMain:
-    - Appending to an existing submenu:
-        AppendMenu(hExisting, MF_STRING, IDM_SOMETHING, "Something");
-    - Creating a new submenu (don't forget to attach it to hMenu):
-        HMENU hSomething = CreatePopupMenu();
-        AppendMenu(hSomething, MF_STRING, IDM_SOMETHING, "Something");
-        AppendMenu(hMenu, MF_POPUP, (UINT_PTR)hSomething, "My Menu");
-*/
 
 // ---- Menu IDs ----
 // Clipping
@@ -548,19 +646,32 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         if (mode == MODE_RECT_POINT)
         {
+            Shape s;
+            s.type = MODE_RECT_POINT;
+            s.color = drawColor;
+
             if (clickCount == 2)
                 Rectangle(hdc, pts[0].x, pts[0].y, pts[1].x, pts[1].y);
             else if (clickCount == 3)
             {
                 int xl = min(pts[0].x, pts[1].x), xr = max(pts[0].x, pts[1].x);
                 int yt = min(pts[0].y, pts[1].y), yb = max(pts[0].y, pts[1].y);
-                PointClipping(hdc, pts[2].x, pts[2].y, xl, yt, xr, yb, drawColor);
+                PointClipping(hdc, mx, my, xl, yt, xr, yb, drawColor);
                 clickCount = 0;
+
+                s.pts.push_back(pts[0]); // rect corner 1
+                s.pts.push_back(pts[1]); // rect corner 2
+                s.pts.push_back(pts[2]); // the point
+                shapes.push_back(s);
             }
         }
 
         else if (mode == MODE_RECT_LINE)
         {
+            Shape s;
+            s.type = MODE_RECT_LINE;
+            s.color = drawColor;
+
             if (clickCount == 2)
                 Rectangle(hdc, pts[0].x, pts[0].y, pts[1].x, pts[1].y);
             else if (clickCount == 4)
@@ -570,21 +681,34 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 CohenSutherlandClip(hdc, pts[2].x, pts[2].y, pts[3].x, pts[3].y,
                                     xl, yt, xr, yb, drawColor);
                 clickCount = 0;
+                s.pts.push_back(pts[0]); // rect corner 1
+                s.pts.push_back(pts[1]); // rect corner 2
+                s.pts.push_back(pts[2]); // line start
+                s.pts.push_back(pts[3]); // line end
+                shapes.push_back(s);
             }
         }
 
         else if (mode == MODE_SQUARE_POINT)
         {
-            int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
+            Shape s;
+            s.type = MODE_RECT_LINE;
+            s.color = drawColor;
             if (clickCount == 2)
             {
+                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
                 Rectangle(hdc, pts[0].x, pts[0].y, pts[0].x + side, pts[0].y + side);
             }
             else if (clickCount == 3)
             {
-                PointClipping(hdc, pts[2].x, pts[2].y, pts[0].x, pts[0].y,
+                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
+                PointClipping(hdc, mx, my, pts[0].x, pts[0].y,
                               pts[0].x + side, pts[0].y + side, drawColor);
                 clickCount = 0;
+                s.pts.push_back(pts[0]); // rect corner 1
+                s.pts.push_back(pts[1]); // rect corner 2
+                s.pts.push_back(pts[2]);
+                shapes.push_back(s);
             }
         }
 
@@ -624,47 +748,80 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         else if (mode == MODE_SQUARE_LINE)
         {
-            int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
             if (clickCount == 2)
             {
+                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
                 Rectangle(hdc, pts[0].x, pts[0].y, pts[0].x + side, pts[0].y + side);
             }
             else if (clickCount == 4)
             {
+                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
                 CohenSutherlandClip(hdc, pts[2].x, pts[2].y, pts[3].x, pts[3].y,
                                     pts[0].x, pts[0].y,
                                     pts[0].x + side, pts[0].y + side, drawColor);
+
+                Shape s;
+                s.type = mode;
+                s.color = drawColor;
+                s.pts.push_back(pts[0]); // Center
+                s.pts.push_back(pts[1]); // Point for Rx
+                s.pts.push_back(pts[2]); // Point for Ry
+                s.pts.push_back(pts[3]);
+                shapes.push_back(s);
+
                 clickCount = 0;
             }
         }
 
         else if (mode == MODE_CIRCLE_POINT)
         {
-            int xc = pts[0].x, yc = pts[0].y;
-            int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
             if (clickCount == 2)
             {
+                int xc = pts[0].x, yc = pts[0].y;
+                int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 Ellipse(hdc, xc - r, yc - r, xc + r, yc + r);
             }
             else if (clickCount == 3)
             {
-                circlePointClipping(hdc, pts[2].x, pts[2].y, xc, yc, r, drawColor);
+                int xc = pts[0].x, yc = pts[0].y;
+                int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
+                circlePointClipping(hdc, mx, my, xc, yc, r, drawColor);
+
+                Shape s;
+                s.type = mode;
+                s.color = drawColor;
+                s.pts.push_back(pts[0]); // Center
+                s.pts.push_back(pts[1]); // Point for Rx
+                s.pts.push_back(pts[2]); // Point for Ry
+                shapes.push_back(s);
+
                 clickCount = 0;
             }
         }
 
         else if (mode == MODE_CIRCLE_LINE)
         {
-            int xc = pts[0].x, yc = pts[0].y;
-            int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
             if (clickCount == 2)
             {
+                int xc = pts[0].x, yc = pts[0].y;
+                int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 Ellipse(hdc, xc - r, yc - r, xc + r, yc + r);
             }
             else if (clickCount == 4)
             {
+                int xc = pts[0].x, yc = pts[0].y;
+                int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 circleLineClipping(hdc, pts[2].x, pts[2].y, pts[3].x, pts[3].y,
                                    xc, yc, r, drawColor);
+
+                Shape s;
+                s.type = mode;
+                s.color = drawColor;
+                s.pts.push_back(pts[0]); // Center
+                s.pts.push_back(pts[1]); // Point for Rx
+                s.pts.push_back(pts[2]); // Point for Ry
+                s.pts.push_back(pts[3]);
+                shapes.push_back(s);
                 clickCount = 0;
             }
         }
@@ -679,7 +836,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                                : (mode == MODE_ELLIPSE_POLAR) ? drawColor
                                                               : drawColor;
                 Shape s;
-                s.type = mode; 
+                s.type = mode;
                 s.color = col;
                 s.pts.push_back(pts[0]); // Center
                 s.pts.push_back(pts[1]); // Point for Rx
@@ -724,14 +881,8 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             Point p;
             p.x = mx;
             p.y = my;
-            
-            cardinalPts.push_back(p);
 
-            Shape s;
-            s.type = MODE_CARDINAL;
-            s.color = drawColor;
-            s.pts = cardinalPts; // Copy the whole vector of points
-            shapes.push_back(s);
+            cardinalPts.push_back(p);
 
             SetPixel(hdc, mx, my, drawColor);
             SetPixel(hdc, mx + 1, my, drawColor);
@@ -746,7 +897,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             s.color = drawColor;
             s.pts.push_back(pts[0]); // Center
             s.pts.push_back(pts[1]); // Point for Radius
-        
+
             if (clickCount == 2)
             {
                 int xc = pts[0].x, yc = pts[0].y;
@@ -840,6 +991,14 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                     Rectangle(hdc, x, y, x + w, y + h);
                     curveFillRect(hdc, Point(x, y), w, h, drawColor);
                 }
+                Shape s;
+                s.type = mode;
+                s.color = drawColor;
+                s.pts.push_back(pts[0]); // window corner 1
+                s.pts.push_back(pts[1]); // window corner 2
+                for (auto &p : cardinalPts)
+                    s.pts.push_back(p); // polygon vertices
+                shapes.push_back(s);
                 clickCount = 0;
             }
         }
@@ -874,8 +1033,8 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         {
             Shape s;
             s.type = mode;
-            s.color = drawColor; 
-            
+            s.color = drawColor;
+
             if (clickCount == 1)
             {
                 s.pts.push_back(pts[0]); // Only need the center point
@@ -902,12 +1061,21 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             HDC hdc = GetDC(hwnd);
             cardinalSplineCurve(hdc, cardinalPts, 0.5, drawColor);
             ReleaseDC(hwnd, hdc);
+
+            Shape s;
+            s.type = MODE_RECT_LINE;
+            s.color = drawColor;
+
             cardinalPts.clear();
             clickCount = 0;
             UpdateTitle(hwnd);
         }
         if ((mode == MODE_POLYGON_CONVEX || mode == MODE_POLYGON_GENERAL) && cardinalPts.size() >= 3)
         {
+            Shape s;
+            s.type = mode;
+            s.color = drawColor;
+            s.pts = cardinalPts;
             HDC hdc = GetDC(hwnd);
             bool convex = isConvex(cardinalPts);
 
@@ -965,6 +1133,15 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             }
 
             PolygonClip(hdc, poly.data(), poly.size(), xl, yt, xr, yb);
+
+            Shape s;
+            s.type = mode;
+            s.color = drawColor;
+            s.pts.push_back(pts[0]); // window corner 1
+            s.pts.push_back(pts[1]); // window corner 2
+            for (auto &p : cardinalPts)
+                s.pts.push_back(p); // polygon vertices
+            shapes.push_back(s);
 
             cardinalPts.clear();
             clickCount = 0;
@@ -1114,9 +1291,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         // Preferences
         case IMD_BG_COLOR:
-            save();
-            clear(hwnd, RGB(0, 0, 0));
-            load(hwnd);
+            clear(hwnd, RGB(255, 255, 255));
             break;
 
         case IDM_MOUSE:
