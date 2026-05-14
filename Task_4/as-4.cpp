@@ -188,6 +188,7 @@ vector<Shape> shapes;
 // clear
 void clear(HWND hwnd, COLORREF bgColor)
 {
+    shapes = {};
     HDC hdc = GetDC(hwnd);
 
     RECT rect;
@@ -557,7 +558,7 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
             {
                 int xl = min(pts[0].x, pts[1].x), xr = max(pts[0].x, pts[1].x);
                 int yt = min(pts[0].y, pts[1].y), yb = max(pts[0].y, pts[1].y);
-                PointClipping(hdc, mx, my, xl, yt, xr, yb, drawColor);
+                PointClipping(hdc, pts[2].x, pts[2].y, xl, yt, xr, yb, drawColor);
                 clickCount = 0;
             }
         }
@@ -578,15 +579,14 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         else if (mode == MODE_SQUARE_POINT)
         {
+            int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
             if (clickCount == 2)
             {
-                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
                 Rectangle(hdc, pts[0].x, pts[0].y, pts[0].x + side, pts[0].y + side);
             }
             else if (clickCount == 3)
             {
-                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
-                PointClipping(hdc, mx, my, pts[0].x, pts[0].y,
+                PointClipping(hdc, pts[2].x, pts[2].y, pts[0].x, pts[0].y,
                               pts[0].x + side, pts[0].y + side, drawColor);
                 clickCount = 0;
             }
@@ -628,14 +628,13 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         else if (mode == MODE_SQUARE_LINE)
         {
+            int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
             if (clickCount == 2)
             {
-                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
                 Rectangle(hdc, pts[0].x, pts[0].y, pts[0].x + side, pts[0].y + side);
             }
             else if (clickCount == 4)
             {
-                int side = min(abs(pts[1].x - pts[0].x), abs(pts[1].y - pts[0].y));
                 CohenSutherlandClip(hdc, pts[2].x, pts[2].y, pts[3].x, pts[3].y,
                                     pts[0].x, pts[0].y,
                                     pts[0].x + side, pts[0].y + side, drawColor);
@@ -645,33 +644,29 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         else if (mode == MODE_CIRCLE_POINT)
         {
+            int xc = pts[0].x, yc = pts[0].y;
+            int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
             if (clickCount == 2)
             {
-                int xc = pts[0].x, yc = pts[0].y;
-                int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 Ellipse(hdc, xc - r, yc - r, xc + r, yc + r);
             }
             else if (clickCount == 3)
             {
-                int xc = pts[0].x, yc = pts[0].y;
-                int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
-                circlePointClipping(hdc, mx, my, xc, yc, r, drawColor);
+                circlePointClipping(hdc, pts[2].x, pts[2].y, xc, yc, r, drawColor);
                 clickCount = 0;
             }
         }
 
         else if (mode == MODE_CIRCLE_LINE)
         {
+            int xc = pts[0].x, yc = pts[0].y;
+            int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
             if (clickCount == 2)
             {
-                int xc = pts[0].x, yc = pts[0].y;
-                int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 Ellipse(hdc, xc - r, yc - r, xc + r, yc + r);
             }
             else if (clickCount == 4)
             {
-                int xc = pts[0].x, yc = pts[0].y;
-                int r = (int)sqrt(pow(pts[1].x - xc, 2) + pow(pts[1].y - yc, 2));
                 circleLineClipping(hdc, pts[2].x, pts[2].y, pts[3].x, pts[3].y,
                                    xc, yc, r, drawColor);
                 clickCount = 0;
