@@ -74,10 +74,6 @@ void drawHappy(HDC hdc, int xc, int yc)
 {
     // 1. Draw and Fill the Head
     circleMidpoint(hdc, xc, yc, 80, RGB(0, 0, 0)); // Black Border
-    // fill with yellow
-    COLORREF cb = GetPixel(hdc, xc, yc);
-    floodfillIterative(hdc, xc, yc, cb, RGB(255, 255, 0));
-    
 
     // 2. Draw the Nose (Triangle-ish)
     lineMidPoint(hdc, xc - 5, yc + 15, xc + 5, yc + 15, RGB(0, 0, 0));
@@ -91,7 +87,7 @@ void drawHappy(HDC hdc, int xc, int yc)
     // Inner Pupils (Filled black)
     circleMidpoint(hdc, xc - 30, yc - 20, 6, RGB(0, 0, 0));
     // fill with black
-    cb = GetPixel(hdc, xc - 30, yc - 20);
+    COLORREF cb = GetPixel(hdc, xc - 30, yc - 20);
     floodfillIterative(hdc, xc - 30, yc - 20, cb, RGB(0, 0, 0));
 
     circleMidpoint(hdc, xc + 30, yc - 20, 6, RGB(0, 0, 0));
@@ -105,7 +101,6 @@ void drawHappy(HDC hdc, int xc, int yc)
     // Start point of smile (left side)
     p1.x = xc - 34;
     p1.y = yc + 30;
-
     // End point of smile (right side)
     p2.x = xc + 34;
     p2.y = yc + 30;
@@ -119,6 +114,7 @@ void drawHappy(HDC hdc, int xc, int yc)
     T2.y = -100; // Negative Y value pulls the curve back up
 
     hermit(hdc, p1, T1, p2, T2, RGB(0, 0, 0));
+    lineMidPoint(hdc, p1.x, p1.y, p2.x, p2.y, RGB(0, 0, 0)); // make line
 }
 
 // sad face
@@ -1118,7 +1114,9 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 
         // Preferences
         case IMD_BG_COLOR:
-            clear(hwnd, RGB(255, 255, 255));
+            save();
+            clear(hwnd, RGB(0, 0, 0));
+            load(hwnd);
             break;
 
         case IDM_MOUSE:
